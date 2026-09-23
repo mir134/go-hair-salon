@@ -43,6 +43,7 @@ export {
   getOrder,
   listOrders,
   payOrder,
+  refundOrder,
   updateOrderItem,
 } from './order'
 export type {
@@ -62,6 +63,7 @@ export {
   createRecharge,
   listBalanceTransactions,
   listRecharges,
+  refundRecharge,
 } from './recharge'
 export type {
   BalanceAdjustmentPayload,

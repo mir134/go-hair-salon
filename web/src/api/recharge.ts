@@ -91,6 +91,16 @@ export function listRecharges(query: RechargeListQuery = {}): Promise<PageData<R
 }
 
 /**
+ * POST /recharges/:id/refund（admin）：充值冲正（04-API.md:163-164、plan todo 36）。
+ *
+ * 仅 active 可冲正（重复冲正 → 409）；客户当前余额不足以扣回本金+赠送时后端返回 422。
+ * 返回冲正后的充值记录（status=refunded），余额以服务端为准。
+ */
+export function refundRecharge(id: number): Promise<Recharge> {
+  return post<Recharge>(`/recharges/${id}/refund`)
+}
+
+/**
  * POST /customers/:id/balance-adjustments（仅 admin，04-API.md:178-182）：
  * 写 balance_transactions（type=adjustment）与 operation_logs；不产生订单、不计营业额。
  * 201=新建 / 200=成功；调整后余额为负时后端返回 422，调用方需就地展示后端文案。

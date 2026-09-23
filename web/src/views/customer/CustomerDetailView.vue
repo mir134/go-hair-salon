@@ -70,7 +70,10 @@
           name="recharges"
           lazy
         >
-          <CustomerRechargesTable :customer-id="customerId" />
+          <CustomerRechargesTable
+            :customer-id="customerId"
+            @refunded="handleRechargeRefunded"
+          />
         </el-tab-pane>
         <el-tab-pane
           label="余额流水"
@@ -185,6 +188,12 @@ function goRecharge(): void {
 
 /** 余额调整成功：重载客户（余额）并强制各流水 tab 重新挂载拉取 */
 function handleAdjusted(): void {
+  ledgerVersion.value += 1
+  refresh()
+}
+
+/** 充值冲正成功（plan todo 37）：余额/积分与各流水均已变化，同余额调整一并刷新（服务端真值） */
+function handleRechargeRefunded(): void {
   ledgerVersion.value += 1
   refresh()
 }

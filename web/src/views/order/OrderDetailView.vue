@@ -32,15 +32,29 @@
           取消订单
         </el-button>
       </div>
+      <!-- 已完成订单操作区：全额退款仅 admin（04-API.md:129,139；plan todo 37） -->
+      <div
+        v-if="isAdmin && order !== null && order.status === 'completed'"
+        class="order-detail__actions"
+      >
+        <el-button
+          type="danger"
+          plain
+          :loading="refunding"
+          @click="handleRefund"
+        >
+          退款
+        </el-button>
+      </div>
     </div>
 
     <el-alert
-      v-if="balanceAfter !== null"
+      v-if="actionNotice !== null"
       class="order-detail__alert"
       type="success"
       :closable="false"
       show-icon
-      :title="`结账成功，客户最新余额：¥${formatCents(balanceAfter)}`"
+      :title="actionNotice"
     />
 
     <el-card
@@ -64,7 +78,7 @@
         >
           订单已无明细：请先「编辑明细」追加服务项目，或「取消订单」。
         </p>
-        <!-- 已完成/已退款/已取消订单：只读。退款入口属 plan todo 37（POST /orders/:id/refund），本 todo 不实现。 -->
+        <!-- 已完成订单：仅 admin 可全额退款（入口在上方操作区）；已退款/已取消订单只读。 -->
       </template>
       <el-empty
         v-else-if="!loading"
@@ -91,7 +105,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { cancelOrder, getOrder } from '@/api'
+import { cancelOrder, getCustomer, getOrder, refundOrder } from '@/api'
 import type { Order } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { formatCents } from '@/utils/format'
@@ -101,20 +115,22 @@ import OrderInfoCard from './components/OrderInfoCard.vue'
 import OrderItemsDrawer from './components/OrderItemsDrawer.vue'
 import OrderItemsTable from './components/OrderItemsTable.vue'
 
-// 订单详情页（07-UI.md:44-59、plan todo 29）：
+// 订单详情页（07-UI.md:44-59、plan todo 29/37）：
 // 明细 + 金额（原价/优惠/实付）+ 状态；待结账可结账/编辑明细，取消仅 admin；
-// 已完成只读（退款属 todo 37）。结账成功后显示客户最新余额。
+// 已完成仅 admin 可全额退款（二次确认）；账务操作成功后显示客户最新余额/积分。
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-/** 取消仅 admin（06-BUSINESS-RULES.md §7）；隐藏按钮是 UI 简化，最终边界在后端 RBAC */
+/** 取消/退款仅 admin（06-BUSINESS-RULES.md §7、04-API.md:129）；隐藏按钮是 UI 简化，最终边界在后端 RBAC */
 const isAdmin = computed(() => auth.role === 'admin')
 
 const orderId = computed(() => Number(String(route.params.id)))
 const order = ref<Order | null>(null)
 const loading = ref(false)
-/** 结账成功后的客户最新余额（服务端真值，07-UI.md:117） */
-const balanceAfter = ref<number | null>(null)
+/** 结账/退款成功后的服务端真值提示（客户最新余额/积分，07-UI.md:117） */
+const actionNotice = ref<string | null>(null)
+/** 退款请求进行中：按钮 loading，防重复提交 */
+const refunding = ref(false)
 const checkoutVisible = ref(false)
 const itemsVisible = ref(false)
 
@@ -124,7 +140,7 @@ const items = computed(() => order.value?.items ?? [])
 watch(
   orderId,
   () => {
-    balanceAfter.value = null
+    actionNotice.value = null
     void loadOrder()
   },
   { immediate: true },
@@ -148,9 +164,60 @@ async function loadOrder(): Promise<void> {
 
 async function handlePaid(paid: Order, balance: number | null): Promise<void> {
   order.value = paid
-  balanceAfter.value = balance
+  // 余额为结账响应的服务端真值；现金等不涉及余额的支付方式不显示提示条
+  actionNotice.value =
+    balance === null ? null : `结账成功，客户最新余额：¥${formatCents(balance)}`
   ElMessage.success('结账成功')
   await loadOrder() // 以服务端为准刷新（状态/积分/明细快照）
+}
+
+/**
+ * 全额退款（仅 admin，04-API.md:129,139,155；plan todo 35/37）：
+ * 危险账务操作二次确认（07-UI.md:89），确认文案明确全额退款、不可撤销及对余额/积分的影响。
+ * 成功后以服务端为准刷新订单（状态 → 已退款）并回读客户最新余额/积分。
+ */
+async function handleRefund(): Promise<void> {
+  const current = order.value
+  if (current === null) {
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认对订单「${current.order_no}」执行全额退款（¥${formatCents(current.paid_amount_cents)}）？` +
+        '退款后订单状态变为「已退款」：余额支付将退回客户余额并扣回本次获得积分，' +
+        '累计消费与营业额同步冲减；本操作不可撤销。',
+      '退款二次确认',
+      { type: 'warning', confirmButtonText: '确认退款', cancelButtonText: '返回' },
+    )
+  } catch {
+    return // 用户取消
+  }
+
+  refunding.value = true
+  try {
+    await refundOrder(current.id)
+    await loadOrder() // 服务端真值：状态 → 已退款
+    await loadCustomerSnapshot(current.customer_id)
+    ElMessage.success('退款成功')
+  } catch {
+    // 拦截器已提示后端文案（403/404/409 重复退款/422 积分不足等）；刷新同步服务端状态
+    await loadOrder()
+  } finally {
+    refunding.value = false
+  }
+}
+
+/** 退款后回读客户最新余额/积分（07-UI.md:117：账务操作成功后明确显示结果与最新余额） */
+async function loadCustomerSnapshot(customerId: number): Promise<void> {
+  try {
+    const customer = await getCustomer(customerId)
+    actionNotice.value =
+      `退款成功，客户最新余额：¥${formatCents(customer.balance_cents)}，` +
+      `积分：${customer.points}`
+  } catch {
+    // 客户已软删除等回读失败场景：不否定退款结果本身
+    actionNotice.value = '退款成功'
+  }
 }
 
 async function handleItemsUpdated(): Promise<void> {

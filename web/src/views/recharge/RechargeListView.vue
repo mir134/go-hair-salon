@@ -16,6 +16,9 @@
         :items="items"
         :loading="loading"
         show-customer
+        :is-admin="isAdmin"
+        :refunding-id="refundingId"
+        @refund="handleRefund"
       />
       <ListPagination
         v-model:page="page"
@@ -28,13 +31,15 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { listRecharges } from '@/api'
 import type { Recharge } from '@/api'
 import ListPagination from '@/components/ListPagination.vue'
 import { usePagedList } from '@/composables/usePagedList'
+import { useRechargeRefund } from '@/composables/useRechargeRefund'
+import { useAuthStore } from '@/stores/auth'
 import type { RechargeListFilters } from '@/utils/rechargeForm'
 
 import RechargeFilterBar from './components/RechargeFilterBar.vue'
@@ -42,7 +47,11 @@ import RechargeTable from './components/RechargeTable.vue'
 
 // 充值导航页（plan todo 33）：充值记录列表（客户/日期筛选 + 分页），
 // 「新增充值」进入 /recharges/new；客户详情「充值」带 ?customer_id= 预选客户。
+// 冲正入口（plan todo 37）仅 admin：隐藏按钮是 UI 简化，最终边界在后端 RBAC。
 const router = useRouter()
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.role === 'admin')
+const { refundingId, refund } = useRechargeRefund()
 const filters = ref<RechargeListFilters>({ customerId: null, startDate: '', endDate: '' })
 
 const { items, total, page, pageSize, loading, load } = usePagedList<Recharge>(
@@ -69,6 +78,15 @@ function handleFilterChange(next: RechargeListFilters): void {
 
 function handlePageChange(): void {
   void load()
+}
+
+/** 冲正成功 → 重载列表（已冲正）；409 等失败 → 同步服务端状态；用户取消不刷新 */
+async function handleRefund(id: number, refundCents: number, customerName: string): Promise<void> {
+  const outcome = await refund(id, refundCents, customerName)
+  if (outcome === 'cancelled') {
+    return
+  }
+  await load()
 }
 
 function goCreate(): void {

@@ -152,6 +152,17 @@ export function cancelOrder(id: number): Promise<Order> {
 }
 
 /**
+ * POST /orders/:id/refund（admin）：全额退款（04-API.md:139,155、plan todo 35）。
+ *
+ * 仅 completed 可退款（重复退款 → 409）；余额支付退回余额并写反向流水，积分按原获得
+ * 扣回（不足时 422 且零写入），累计消费与营业额同步冲减。MVP 仅全额退款。
+ * 返回退款后的订单详情（status=refunded，服务端真值）。
+ */
+export function refundOrder(id: number): Promise<Order> {
+  return post<Order>(`/orders/${id}/refund`)
+}
+
+/**
  * POST /orders/:id/items（both）：挂单追加服务项目（04-API.md:136-138）。
  * 仅 pending 可编辑（否则 409）；订单金额随明细由后端重算，编辑不产生资金变动。
  */
