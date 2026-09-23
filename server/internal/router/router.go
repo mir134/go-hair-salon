@@ -110,6 +110,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.POST("/orders/:id/items", orderCtl.AddItem)
 	both.PUT("/orders/:id/items/:item_id", orderCtl.UpdateItem)
 	both.DELETE("/orders/:id/items/:item_id", orderCtl.RemoveItem)
+	// 挂单结账：both（仅 pending 可结账，重复结账 409）（04-API.md:150-151）。
+	both.POST("/orders/:id/pay", orderCtl.Pay)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
