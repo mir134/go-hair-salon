@@ -18,8 +18,17 @@
       </template>
     </el-result>
 
+    <!-- 手机端：最新余额大字显示（plan todo 55、07-UI.md:117） -->
+    <div
+      v-if="isMobile && balanceAfter !== null"
+      class="recharge-result__balance"
+    >
+      <span class="recharge-result__balance-label">最新余额（元）</span>
+      <span class="recharge-result__balance-value">{{ formatCents(balanceAfter) }}</span>
+    </div>
+
     <el-descriptions
-      :column="2"
+      :column="isMobile ? 1 : 2"
       border
     >
       <el-descriptions-item label="客户">
@@ -37,9 +46,9 @@
       <el-descriptions-item label="增加余额（元）">
         {{ formatCents(recharge.recharge_amount_cents + recharge.gift_amount_cents) }}
       </el-descriptions-item>
-      <!-- 最新余额为提交成功后回读的服务端真值（不做本地加减） -->
+      <!-- 最新余额为提交成功后回读的服务端真值（不做本地加减）；手机端在卡片上方大字显示 -->
       <el-descriptions-item
-        v-if="balanceAfter !== null"
+        v-if="!isMobile && balanceAfter !== null"
         label="最新余额（元）"
       >
         {{ formatCents(balanceAfter) }}
@@ -54,16 +63,20 @@
 
 <script setup lang="ts">
 import type { Recharge } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { PAYMENT_METHOD_LABELS } from '@/constants'
 import { formatCents } from '@/utils/format'
 
 // 充值结果（07-UI.md:72-74）：金额明细 + 客户最新余额（服务端真值）。
 // 实付取 actual_amount_cents、增加余额取本金+赠送，两者均来自服务端返回，避免把赠送误标为实付。
+// 手机端最新余额以大字呈现（plan todo 55）。
 defineProps<{
   recharge: Recharge
   customerName: string
   balanceAfter: number | null
 }>()
+
+const isMobile = useIsMobile()
 
 const emit = defineEmits<{
   restart: []
@@ -76,5 +89,29 @@ const emit = defineEmits<{
   margin: 12px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+/* 手机端最新余额大字（plan todo 55） */
+.recharge-result__balance {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: #f5f7fa;
+  border-radius: 10px;
+}
+
+.recharge-result__balance-label {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.recharge-result__balance-value {
+  color: var(--el-color-primary);
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 </style>

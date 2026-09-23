@@ -23,8 +23,17 @@
       </template>
     </el-result>
 
+    <!-- 手机端：最新余额大字显示（plan todo 55、07-UI.md:117） -->
+    <div
+      v-if="isMobile && balanceAfter !== null"
+      class="result__balance"
+    >
+      <span class="result__balance-label">最新余额（元）</span>
+      <span class="result__balance-value">{{ formatCents(balanceAfter) }}</span>
+    </div>
+
     <el-descriptions
-      :column="2"
+      :column="isMobile ? 1 : 2"
       border
     >
       <el-descriptions-item label="客户">
@@ -53,9 +62,9 @@
       >
         {{ PAYMENT_METHOD_LABELS[order.payment_method] ?? order.payment_method }}
       </el-descriptions-item>
-      <!-- 最新余额仅直接完成时展示（挂单不产生资金变动，无余额可核对） -->
+      <!-- 最新余额仅直接完成时展示（挂单不产生资金变动，无余额可核对）；手机端在卡片上方大字显示 -->
       <el-descriptions-item
-        v-if="balanceAfter !== null"
+        v-if="!isMobile && balanceAfter !== null"
         label="最新余额（元）"
         :span="2"
       >
@@ -73,6 +82,7 @@
 import { computed } from 'vue'
 
 import type { Order } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TAG_TYPES,
@@ -82,11 +92,14 @@ import { formatCents } from '@/utils/format'
 
 // 消费结果（07-UI.md:117）：订单号 + 金额明细 + 客户最新余额（余额支付重点核对）。
 // 直接完成与挂单共用：文案按 order.status 推导，余额仅在直接完成后传入。
+// 手机端最新余额以大字呈现（plan todo 55）。
 const props = defineProps<{
   order: Order
   customerName: string
   balanceAfter: number | null
 }>()
+
+const isMobile = useIsMobile()
 
 /** 挂单=待结账（无资金变动），其余=已完成的直接完成单 */
 const isPending = computed(() => props.order.status === 'pending')
@@ -108,5 +121,29 @@ const emit = defineEmits<{
   margin: 12px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+/* 手机端最新余额大字（plan todo 55） */
+.result__balance {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: #f5f7fa;
+  border-radius: 10px;
+}
+
+.result__balance-label {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.result__balance-value {
+  color: var(--el-color-primary);
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 </style>

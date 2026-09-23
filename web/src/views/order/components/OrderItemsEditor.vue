@@ -10,6 +10,7 @@
     <el-select
       :model-value="selectedServiceIds"
       class="items-editor__select"
+      :size="isMobile ? 'large' : 'default'"
       multiple
       filterable
       clearable
@@ -57,7 +58,7 @@
               :model-value="item.quantity"
               :min="1"
               :max="99"
-              size="small"
+              :size="isMobile ? 'large' : 'small'"
               @change="(value) => changeQuantity(item.service.id, value)"
             />
           </label>
@@ -67,7 +68,7 @@
               v-if="isAdmin"
               :model-value="item.unitPriceText"
               class="items-editor__price"
-              size="small"
+              :size="isMobile ? 'large' : 'small'"
               @input="(value) => changePrice(item.service.id, value)"
             />
             <span
@@ -98,16 +99,20 @@
 import { computed } from 'vue'
 
 import type { Service } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { formatCents } from '@/utils/format'
 import { consumeItemFromService, itemUnitPriceCents, type ConsumeItem } from '@/utils/orderForm'
 
 // 消费第 2 步：多选服务 + 数量/成交单价（06 §3.1：改价仅 admin，staff 价格输入框禁用）。
+// 手机端控件加大到 large 且每行占满宽度（plan todo 55：快速消费 3~5 步完成）。
 const props = defineProps<{
   items: ConsumeItem[]
   services: Service[]
   isAdmin: boolean
   loading: boolean
 }>()
+
+const isMobile = useIsMobile()
 
 const emit = defineEmits<{
   'update:items': [value: ConsumeItem[]]
@@ -228,5 +233,27 @@ function changePrice(serviceId: number, value: string): void {
   margin: 8px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+/* 手机端（<768px，与 useIsMobile 断点一致）：控件占满整行，便于手指操作（plan todo 55） */
+@media (max-width: 767px) {
+  .items-editor__select {
+    max-width: none;
+  }
+
+  .items-editor__field {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .items-editor__price {
+    flex: 1;
+    width: auto;
+  }
+
+  .items-editor__amount {
+    margin-left: 0;
+    font-size: 16px;
+  }
 }
 </style>

@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="结账"
-    width="460px"
+    :width="isMobile ? '92%' : '460px'"
     :close-on-click-modal="false"
   >
     <div v-loading="loading">
@@ -89,16 +89,20 @@ import { computed, ref, watch } from 'vue'
 
 import { ApiError, getCustomer, getOrder, payOrder } from '@/api'
 import type { Customer, Order, OrderPaymentMethod } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/constants'
 import { formatCents } from '@/utils/format'
 
 // 结账弹窗（04-API.md:150、07-UI.md:57）：选择支付方式 → 确认收款 → pending 转 completed。
 // 打开时按 orderId 拉取订单与客户余额（列表行可能已过期，结账金额以服务端为准）。
 // 余额是否足够由后端事务判定（06-BUSINESS-RULES.md:34-36）；这里只提示差额，不阻止提交。
+// 手机端弹窗宽度收缩为 92%，避免 375px 视口溢出（plan todo 55）。
 const props = defineProps<{
   modelValue: boolean
   orderId: number | null
 }>()
+
+const isMobile = useIsMobile()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]

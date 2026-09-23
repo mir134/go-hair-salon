@@ -264,4 +264,12 @@ function goBack(): void {
   font-size: 16px;
   font-weight: 600;
 }
+
+/* 手机端（<768px）：步骤卡片紧凑排布（plan todo 55：3~5 步完成快速消费） */
+@media (max-width: 767px) {
+  .quick-consume {
+    gap: 12px;
+    max-width: none;
+  }
+}
 </style>

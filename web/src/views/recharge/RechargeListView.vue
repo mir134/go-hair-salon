@@ -1,9 +1,13 @@
 <template>
   <section class="recharge-list">
-    <div class="recharge-list__head">
+    <div
+      class="recharge-list__head"
+      :class="{ 'recharge-list__head--mobile': isMobile }"
+    >
       <span class="recharge-list__title">充值记录</span>
       <el-button
         type="primary"
+        :size="isMobile ? 'large' : 'default'"
         @click="goCreate"
       >
         新增充值
@@ -37,6 +41,7 @@ import { useRouter } from 'vue-router'
 import { listRecharges } from '@/api'
 import type { Recharge } from '@/api'
 import ListPagination from '@/components/ListPagination.vue'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { usePagedList } from '@/composables/usePagedList'
 import { useRechargeRefund } from '@/composables/useRechargeRefund'
 import { useAuthStore } from '@/stores/auth'
@@ -50,6 +55,7 @@ import RechargeTable from './components/RechargeTable.vue'
 // 冲正入口（plan todo 37）仅 admin：隐藏按钮是 UI 简化，最终边界在后端 RBAC。
 const router = useRouter()
 const auth = useAuthStore()
+const isMobile = useIsMobile()
 const isAdmin = computed(() => auth.role === 'admin')
 const { refundingId, refund } = useRechargeRefund()
 const filters = ref<RechargeListFilters>({ customerId: null, startDate: '', endDate: '' })
@@ -105,5 +111,16 @@ function goCreate(): void {
 .recharge-list__title {
   font-size: 16px;
   font-weight: 600;
+}
+
+/* 手机端（<768px）：标题 + 全宽大按钮（plan todo 55） */
+.recharge-list__head--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.recharge-list__head--mobile .el-button {
+  min-height: 44px;
 }
 </style>

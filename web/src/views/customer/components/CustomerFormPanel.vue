@@ -12,7 +12,8 @@
     v-loading="loadingDetail"
     :model="form"
     :rules="rules"
-    label-width="80px"
+    :label-width="isMobile ? 'auto' : '80px'"
+    :label-position="isMobile ? 'top' : 'right'"
     @submit.prevent
   >
     <CustomerFieldsForm

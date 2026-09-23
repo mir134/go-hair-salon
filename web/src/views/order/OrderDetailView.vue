@@ -1,6 +1,9 @@
 <template>
   <section class="order-detail">
-    <div class="order-detail__nav">
+    <div
+      class="order-detail__nav"
+      :class="{ 'order-detail__nav--mobile': isMobile }"
+    >
       <el-button
         link
         type="primary"
@@ -15,18 +18,23 @@
       >
         <el-button
           type="primary"
+          :size="actionSize"
           :disabled="items.length === 0"
           @click="checkoutVisible = true"
         >
           结账
         </el-button>
-        <el-button @click="itemsVisible = true">
+        <el-button
+          :size="actionSize"
+          @click="itemsVisible = true"
+        >
           编辑明细
         </el-button>
         <el-button
           v-if="isAdmin"
           type="danger"
           plain
+          :size="actionSize"
           @click="handleCancel"
         >
           取消订单
@@ -40,6 +48,7 @@
         <el-button
           type="danger"
           plain
+          :size="actionSize"
           :loading="refunding"
           @click="handleRefund"
         >
@@ -107,6 +116,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { cancelOrder, getCustomer, getOrder, refundOrder } from '@/api'
 import type { Order } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { useAuthStore } from '@/stores/auth'
 import { formatCents } from '@/utils/format'
 
@@ -123,6 +133,9 @@ const router = useRouter()
 const auth = useAuthStore()
 /** 取消/退款仅 admin（06-BUSINESS-RULES.md §7、04-API.md:129）；隐藏按钮是 UI 简化，最终边界在后端 RBAC */
 const isAdmin = computed(() => auth.role === 'admin')
+const isMobile = useIsMobile()
+/** 手机端操作按钮加大到 large（触控目标 ≥44px，plan todo 53/55） */
+const actionSize = computed(() => (isMobile.value ? 'large' : 'default'))
 
 const orderId = computed(() => Number(String(route.params.id)))
 const order = ref<Order | null>(null)
@@ -269,6 +282,23 @@ function goCustomer(customerId: number): void {
 .order-detail__actions {
   display: flex;
   gap: 8px;
+}
+
+/* 手机端（<768px）：返回行 + 全宽大操作按钮（plan todo 55：待结账入口可用） */
+.order-detail__nav--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.order-detail__nav--mobile .order-detail__actions {
+  width: 100%;
+}
+
+.order-detail__nav--mobile .order-detail__actions .el-button {
+  flex: 1;
+  min-height: 44px;
+  margin-left: 0;
 }
 
 .order-detail__alert {

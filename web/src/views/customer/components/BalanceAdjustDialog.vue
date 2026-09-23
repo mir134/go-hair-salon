@@ -14,7 +14,8 @@
     />
 
     <el-form
-      label-width="120px"
+      :label-width="isMobile ? 'auto' : '120px'"
+      :label-position="isMobile ? 'top' : 'right'"
       @submit.prevent
     >
       <el-form-item label="客户">

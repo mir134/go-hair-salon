@@ -199,4 +199,12 @@ function goBack(): void {
   font-size: 16px;
   font-weight: 600;
 }
+
+/* 手机端（<768px）：卡片紧凑排布（plan todo 55：≤5 步完成充值） */
+@media (max-width: 767px) {
+  .recharge-create {
+    gap: 12px;
+    max-width: none;
+  }
+}
 </style>

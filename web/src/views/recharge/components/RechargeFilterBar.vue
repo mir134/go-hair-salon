@@ -123,4 +123,20 @@ function reset(): void {
 .recharge-filters__customer {
   width: 280px;
 }
+
+/* 手机端（<768px，与 useIsMobile 断点一致）：筛选项各占一行，避免 375px 横向溢出（plan todo 55） */
+@media (max-width: 767px) {
+  .recharge-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .recharge-filters__customer {
+    width: 100%;
+  }
+
+  .recharge-filters .el-date-editor {
+    width: 100%;
+  }
+}
 </style>

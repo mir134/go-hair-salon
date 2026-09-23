@@ -4,7 +4,8 @@
       <span>2. 充值信息</span>
     </template>
     <el-form
-      label-width="120px"
+      :label-width="isMobile ? 'auto' : '120px'"
+      :label-position="isMobile ? 'top' : 'right'"
       @submit.prevent
     >
       <el-form-item
@@ -60,12 +61,16 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
 import { PAYMENT_METHOD_LABELS, RECHARGE_PAYMENT_METHODS } from '@/constants'
 import type { RechargeFormModel } from '@/utils/rechargeForm'
 
 // 充值第 2 步（07-UI.md:68-70）：实付金额、赠送金额、支付方式、备注。
 // 表单模型整体经 defineModel 上抛，父级负责解析、校验、预览与提交。
+// 手机端标签置顶（label-position=top），避免 375px 下输入框被挤压（plan todo 55）。
 const form = defineModel<RechargeFormModel>('form', { required: true })
+
+const isMobile = useIsMobile()
 
 function patch(partial: Partial<RechargeFormModel>): void {
   form.value = { ...form.value, ...partial }

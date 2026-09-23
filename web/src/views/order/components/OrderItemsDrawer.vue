@@ -2,7 +2,7 @@
   <el-drawer
     v-model="visible"
     title="编辑明细（挂单）"
-    size="600px"
+    :size="isMobile ? '100%' : '600px'"
     :close-on-click-modal="false"
   >
     <div
@@ -69,6 +69,7 @@ import {
   updateOrderItem,
 } from '@/api'
 import type { Order, OrderItem, Service } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 import PendingOrderAddBar from './PendingOrderAddBar.vue'
 import PendingOrderItemRow from './PendingOrderItemRow.vue'
@@ -77,11 +78,14 @@ import PendingOrderTotals from './PendingOrderTotals.vue'
 // 挂单明细编辑抽屉（07-UI.md:59、04-API.md:136-138）：
 // 增删服务项目、修改数量（金额由后端随明细重算）；修改单价仅 admin 且必填原因。
 // 每次变更后重新拉取订单，界面金额一律以服务端重算结果为准。
+// 手机端抽屉占满整屏（plan todo 55）。
 const props = defineProps<{
   modelValue: boolean
   orderId: number | null
   isAdmin: boolean
 }>()
+
+const isMobile = useIsMobile()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]

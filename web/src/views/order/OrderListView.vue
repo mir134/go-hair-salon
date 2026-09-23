@@ -1,7 +1,10 @@
 <template>
   <section class="order-list">
     <el-card shadow="never">
-      <div class="order-list__toolbar">
+      <div
+        class="order-list__toolbar"
+        :class="{ 'order-list__toolbar--mobile': isMobile }"
+      >
         <el-radio-group
           v-model="statusFilter"
           @change="handleFilterChange"
@@ -17,6 +20,7 @@
         </el-radio-group>
         <el-button
           type="primary"
+          :size="isMobile ? 'large' : 'default'"
           @click="goCreate"
         >
           开单
@@ -63,6 +67,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { cancelOrder, listOrders } from '@/api'
 import type { Order, OrderListQuery } from '@/api'
 import ListPagination from '@/components/ListPagination.vue'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { usePagedList } from '@/composables/usePagedList'
 import { useAuthStore } from '@/stores/auth'
 import { formatCents } from '@/utils/format'
@@ -87,6 +92,7 @@ type StatusFilter = (typeof STATUS_FILTERS)[number]['value']
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const isMobile = useIsMobile()
 /** 取消仅 admin（06-BUSINESS-RULES.md §7）；隐藏按钮是 UI 简化，最终边界在后端 RBAC */
 const isAdmin = computed(() => auth.role === 'admin')
 
@@ -211,5 +217,20 @@ function goCreate(): void {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+/* 手机端（<768px）：筛选按钮换行 + 开单按钮占满整行（plan todo 55：待结账入口可用） */
+.order-list__toolbar--mobile {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.order-list__toolbar--mobile .el-radio-group {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.order-list__toolbar--mobile .el-button {
+  min-height: 44px;
 }
 </style>
