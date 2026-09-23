@@ -8,6 +8,13 @@
       >
         ← 返回客户列表
       </el-button>
+      <el-button
+        type="primary"
+        :disabled="customer === null"
+        @click="goConsume"
+      >
+        快速消费
+      </el-button>
     </div>
 
     <el-card
@@ -130,10 +137,18 @@ async function loadLatestOrder(): Promise<void> {
 function goBack(): void {
   void router.push('/customers')
 }
+
+/** 快速消费入口（07-UI.md:36、plan todo 23）：带客户 id 进入，消费页预选该客户 */
+function goConsume(): void {
+  void router.push({ path: '/orders/new', query: { customer_id: String(customerId.value) } })
+}
 </script>
 
 <style scoped>
 .customer-detail__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 

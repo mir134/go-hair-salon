@@ -35,6 +35,15 @@ export type {
 } from './customer'
 export { attachCustomerTag, detachCustomerTag, listTags } from './tag'
 export type { Tag } from './tag'
+export { createOrder, getOrder, listOrders } from './order'
+export type {
+  Order,
+  OrderCreatePayload,
+  OrderItem,
+  OrderItemPayload,
+  OrderListQuery,
+  OrderPaymentMethod,
+} from './order'
 export {
   createService,
   createServiceCategory,

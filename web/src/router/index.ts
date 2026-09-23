@@ -67,6 +67,13 @@ const routes: RouteRecordRaw[] = [
           meta: { title: item.title, roles: item.roles },
         }),
       ),
+      // 快速消费（07-UI.md:36、50-67）：非导航项，高亮「消费」菜单；入口在客户详情「快速消费」
+      {
+        path: 'orders/new',
+        name: 'order-new',
+        component: () => import('@/views/order/QuickConsumeView.vue'),
+        meta: { title: '快速消费', roles: ['admin', 'staff'], navPath: '/orders' },
+      },
       // 客户详情（07-UI.md:44-46）：非导航项，高亮「客户」菜单
       {
         path: 'customers/:id',
