@@ -20,6 +20,9 @@ type Options struct {
 	JWTSecret string
 	// TokenTTL 是 JWT 有效期；0 表示默认 24h。
 	TokenTTL time.Duration
+	// Backups 是备份服务（main 从 config 注入，与 todo 51 自动备份定时器共享同一实例）。
+	// 为 nil 时不注册 /backups 路由（仅测试装配可省略）。
+	Backups *service.BackupService
 }
 
 // New 装配 gin 引擎：panic recovery → 请求上下文（ip/ua 审计）→ 请求日志 → 路由与静态兜底。
@@ -176,6 +179,12 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.PUT("/settings/:key", settingsCtl.Update)
 	// 操作日志查询仅 admin（04-API.md:237-243、06 §7「staff 禁操作日志」）。
 	adminOnly.GET("/operation-logs", logCtl.List)
+	// 备份列表/手动备份仅 admin（04-API.md:245-256、08-DEPLOYMENT.md:70-76）。
+	if opts.Backups != nil {
+		backupCtl := controller.NewBackupController(opts.Backups)
+		adminOnly.GET("/backups", backupCtl.List)
+		adminOnly.POST("/backups", backupCtl.Create)
+	}
 	// 员工 CRUD 仅 admin；DELETE = 停用（status=0，行保留，D7 决议）（04-API.md:194-204、06 §7）。
 	adminOnly.GET("/employees", employeeCtl.List)
 	adminOnly.POST("/employees", employeeCtl.Create)

@@ -100,9 +100,24 @@ func run() error {
 		logger.Info("用户已存在，跳过初始管理员播种")
 	}
 
+	// 备份服务（todo 50）：WAL 安全快照 + uploads + config.yaml 打成 ZIP，保留最近 7 份；
+	// 与自动备份定时器（todo 51）共享同一实例，避免并发备份交错。
+	backupService := service.NewBackupService(service.BackupServiceDeps{
+		DB:         db,
+		DBPath:     cfg.DBPath,
+		UploadDir:  cfg.UploadDir,
+		BackupDir:  cfg.BackupDir,
+		ConfigPath: config.DefaultPath,
+		Logs:       service.NewOperationLogService(repository.NewOperationLogRepository(db)),
+		Logger:     logger,
+	})
+
 	server := &http.Server{
-		Addr:              fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort),
-		Handler:           router.New(db, logger, router.Options{JWTSecret: cfg.JWTSecret}),
+		Addr: fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort),
+		Handler: router.New(db, logger, router.Options{
+			JWTSecret: cfg.JWTSecret,
+			Backups:   backupService,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serveErr := make(chan error, 1)

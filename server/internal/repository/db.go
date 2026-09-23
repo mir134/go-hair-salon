@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -55,6 +56,19 @@ func Open(dbPath string) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetConnMaxLifetime(0)
+	return db, nil
+}
+
+// OpenReadOnly 以只读方式打开任意 SQLite 数据库文件（不创建、不写入）。
+//
+// 用途：备份快照的完整性校验（service 层 todo 50）与恢复前的文件校验（todo 52）——
+// mode=ro 确保校验动作绝不会改动被校验的文件（尤其不能把快照“修好”后再放行）。
+// 返回的 *sql.DB 由调用方负责 Close。
+func OpenReadOnly(path string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		return nil, fmt.Errorf("打开只读数据库 %s 失败: %w", path, err)
+	}
 	return db, nil
 }
 
