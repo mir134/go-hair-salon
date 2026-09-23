@@ -238,7 +238,7 @@ func validateServiceName(name string) (string, error) {
 	return trimmed, nil
 }
 
-// validateServicePrice 校验标准价（整数分，必须大于 0；禁止 float64 金额）。
+// validateServicePrice 校验标准价（整数分，必须大于 0；禁止浮点型金额）。
 func validateServicePrice(priceCents int64) error {
 	if priceCents <= 0 {
 		return BadRequest("服务价格必须大于 0（整数分）")

@@ -72,6 +72,8 @@ npm run build           # vue-tsc --noEmit && vite build
 ```
 
 - 后端 `go test ./...`、`go vet ./...`、`gofmt -l .`（空）必须通过；前端 `npm run lint`、`npm run build` 必须通过。
-- 金额一律使用 int64 整数分，禁止 float64。
+- 金额一律使用 int64 整数分，禁止 float64（浮点型一律禁止）：
+  - 静态门（`go test ./...` 自动执行）：`go test ./internal/model -run TestNoFloat64InServerCode`；
+  - 等价人工命令（应为空输出）：`grep -rn "float64" server/ --include="*.go" | grep -v _test`。
 - 账务（充值 / 消费 / 退款 / 调整）必须事务化、可追溯，核心流水禁止物理删除。
 - SQLite 数据库只放本机磁盘，禁止放在 SMB/NFS/NAS 等网络共享目录。

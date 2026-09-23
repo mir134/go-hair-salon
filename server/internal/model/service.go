@@ -18,7 +18,7 @@ type ServiceCategory struct {
 }
 
 // Service 是服务项目（services 表，03-DATABASE.md:98-111）；
-// price_cents 为整数分（禁止 float64），已产生订单的服务只能停用不能删除。
+// price_cents 为整数分（禁止浮点数），已产生订单的服务只能停用不能删除。
 type Service struct {
 	ID              int64          `gorm:"primaryKey" json:"id"`
 	CategoryID      int64          `gorm:"not null" json:"category_id"`
