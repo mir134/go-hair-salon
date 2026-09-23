@@ -55,8 +55,20 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	categoryCtl := controller.NewServiceCategoryController(categorySvc, logSvc)
 	itemSvc := service.NewServiceItemService(repository.NewServiceItemRepository(db), categoryRepo)
 	itemCtl := controller.NewServiceItemController(itemSvc, logSvc)
+	orderRepo := repository.NewOrderRepository(db)
+	orderSvc := service.NewOrderService(service.OrderServiceDeps{
+		Tx:        repository.NewTransactor(db),
+		Orders:    orderRepo,
+		Customers: customerRepo,
+		Services:  itemSvc,
+		Employees: repository.NewEmployeeRepository(db),
+		Ledger:    repository.NewLedgerRepository(db),
+		Settings:  repository.NewSettingsRepository(db),
+		Logs:      logSvc,
+	})
+	orderCtl := controller.NewOrderController(orderSvc)
 	detailSvc := service.NewCustomerDetailService(customerRepo,
-		repository.NewOrderRepository(db), repository.NewLedgerRepository(db))
+		orderRepo, repository.NewLedgerRepository(db))
 	detailCtl := controller.NewCustomerDetailController(detailSvc)
 
 	api := engine.Group("/api/v1")
@@ -90,6 +102,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	// 服务项目：查询 both，含分类信息（04-API.md:120-125）。
 	both.GET("/services", itemCtl.List)
 	both.GET("/services/:id", itemCtl.Get)
+	// 订单：创建/查询 both（04-API.md:127-135）。
+	both.POST("/orders", orderCtl.Create)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),

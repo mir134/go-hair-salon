@@ -64,4 +64,6 @@ const (
 	SettingPointsPerYuan = "points_per_yuan"
 	SettingShopName      = "shop_name"
 	DefaultShopName      = "理发店"
+	// DefaultPointsPerYuan 是「每消费 1 元获得积分」的默认值（03-DATABASE.md:259）。
+	DefaultPointsPerYuan = 1
 )

@@ -33,6 +33,16 @@ func (r *LedgerRepository) ListPointsByCustomer(ctx context.Context, customerID 
 	return listLedger[model.PointsTransaction](ctx, r.db, &model.PointsTransaction{}, customerID, offset, limit)
 }
 
+// CreateBalanceTx 在事务内写入余额流水（只增不删；调用方保证与余额更新同事务）。
+func (r *LedgerRepository) CreateBalanceTx(ctx context.Context, tx Tx, transaction *model.BalanceTransaction) error {
+	return tx.WithContext(ctx).Create(transaction).Error
+}
+
+// CreatePointsTx 在事务内写入积分流水（只增不删；调用方保证与积分更新同事务）。
+func (r *LedgerRepository) CreatePointsTx(ctx context.Context, tx Tx, transaction *model.PointsTransaction) error {
+	return tx.WithContext(ctx).Create(transaction).Error
+}
+
 // listLedger 是余额/积分流水分页查询的公共实现：
 // 按 customer_id 过滤、created_at 倒序（同秒时按 id 倒序保证稳定）。
 func listLedger[T any](ctx context.Context, db *gorm.DB, entity any, customerID int64, offset, limit int) ([]T, int64, error) {

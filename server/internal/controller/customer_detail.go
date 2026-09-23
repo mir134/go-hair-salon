@@ -23,11 +23,16 @@ func NewCustomerDetailController(details *service.CustomerDetailService) *Custom
 }
 
 // OrderView 是订单 DTO（客户详情「消费记录」）。
+//
+// CustomerName/EmployeeName 是订单列表/创建响应的联表冗余字段；
+// 客户详情聚合不填充（列表行不逐行联表，避免 N+1）。
 type OrderView struct {
 	ID                  int64     `json:"id"`
 	OrderNo             string    `json:"order_no"`
 	CustomerID          int64     `json:"customer_id"`
+	CustomerName        string    `json:"customer_name"`
 	EmployeeID          *int64    `json:"employee_id"`
+	EmployeeName        string    `json:"employee_name"`
 	OriginalAmountCents int64     `json:"original_amount_cents"`
 	DiscountAmountCents int64     `json:"discount_amount_cents"`
 	PaidAmountCents     int64     `json:"paid_amount_cents"`
