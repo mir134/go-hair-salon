@@ -65,6 +65,13 @@ const routes: RouteRecordRaw[] = [
           meta: { title: item.title, roles: item.roles },
         }),
       ),
+      // 客户详情（07-UI.md:44-46）：非导航项，高亮「客户」菜单
+      {
+        path: 'customers/:id',
+        name: 'customer-detail',
+        component: () => import('@/views/customer/CustomerDetailView.vue'),
+        meta: { title: '客户详情', roles: ['admin', 'staff'], navPath: '/customers' },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },

@@ -8,9 +8,20 @@ export {
   createCustomer,
   deleteCustomer,
   getCustomer,
+  listCustomerBalanceTransactions,
+  listCustomerOrders,
+  listCustomerPointsTransactions,
   listCustomers,
   updateCustomer,
 } from './customer'
-export type { Customer, CustomerListQuery, CustomerPayload } from './customer'
+export type {
+  BalanceTransaction,
+  Customer,
+  CustomerListQuery,
+  CustomerOrder,
+  CustomerPayload,
+  PageQuery,
+  PointsTransaction,
+} from './customer'
 export { attachCustomerTag, detachCustomerTag, listTags } from './tag'
 export type { Tag } from './tag'

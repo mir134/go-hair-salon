@@ -15,3 +15,52 @@ export const GENDER_LABELS: Readonly<Record<string, string>> = {
   female: '女',
   other: '其他',
 }
+
+/** Element Plus 标签色（el-tag type） */
+export type ElementTagType = 'primary' | 'success' | 'info' | 'warning' | 'danger'
+
+/** 订单状态文案（model/const.go:19-24、03-DATABASE.md:133-145） */
+export const ORDER_STATUS_LABELS: Readonly<Record<string, string>> = {
+  pending: '待结账',
+  completed: '已完成',
+  refunded: '已退款',
+  cancelled: '已取消',
+}
+
+/** 订单状态标签色 */
+export const ORDER_STATUS_TAG_TYPES: Readonly<Record<string, ElementTagType>> = {
+  pending: 'warning',
+  completed: 'success',
+  refunded: 'info',
+  cancelled: 'danger',
+}
+
+/** 支付方式文案（model/const.go:27-32） */
+export const PAYMENT_METHOD_LABELS: Readonly<Record<string, string>> = {
+  cash: '现金',
+  wechat: '微信',
+  alipay: '支付宝',
+  balance: '余额',
+}
+
+/** 余额流水类型文案（model/const.go:35-41、03-DATABASE.md:206-214） */
+export const BALANCE_TX_TYPE_LABELS: Readonly<Record<string, string>> = {
+  recharge: '充值',
+  consume: '消费',
+  refund: '退款',
+  gift: '赠送',
+  adjustment: '调整',
+}
+
+/** 积分流水类型文案（model/const.go:44-48、03-DATABASE.md:234-240） */
+export const POINTS_TX_TYPE_LABELS: Readonly<Record<string, string>> = {
+  earn: '获得',
+  refund: '退还',
+  adjustment: '调整',
+}
+
+/** 流水关联对象类型文案（model/const.go:56-60） */
+export const REFERENCE_TYPE_LABELS: Readonly<Record<string, string>> = {
+  order: '订单',
+  recharge: '充值',
+}

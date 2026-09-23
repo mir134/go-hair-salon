@@ -8,7 +8,7 @@
         {{ DEFAULT_SHOP_NAME }}
       </div>
       <el-menu
-        :default-active="route.path"
+        :default-active="activeMenu"
         class="shell__menu"
         router
       >
@@ -66,6 +66,9 @@ const route = useRoute()
 const router = useRouter()
 
 const roleLabel = computed(() => (auth.role === null ? '' : ROLE_LABELS[auth.role]))
+
+/** 详情页等子页面用 meta.navPath 高亮所属导航（如 /customers/:id → 客户） */
+const activeMenu = computed(() => route.meta.navPath ?? route.path)
 
 // 角色过滤仅导航简化；真实权限由后端 RBAC 中间件兜底（07-UI.md:30）
 const visibleMenu = computed(() => {

@@ -22,107 +22,10 @@
       label-width="80px"
       @submit.prevent
     >
-      <el-form-item
-        label="姓名"
-        prop="name"
-      >
-        <el-input
-          v-model="form.name"
-          maxlength="32"
-          placeholder="必填"
-        />
-      </el-form-item>
-      <el-form-item
-        label="手机号"
-        prop="phone"
-      >
-        <el-input
-          v-model="form.phone"
-          maxlength="20"
-          placeholder="选填；非空手机号对应唯一客户"
-        />
-      </el-form-item>
-      <el-form-item
-        label="性别"
-        prop="gender"
-      >
-        <el-select
-          v-model="form.gender"
-          class="customer-form__control"
-          placeholder="未填写"
-          clearable
-        >
-          <el-option
-            v-for="(label, value) in GENDER_LABELS"
-            :key="value"
-            :label="label"
-            :value="value"
-          />
-        </el-select>
-      </el-form-item>
-      <el-form-item
-        label="生日"
-        prop="birthday"
-      >
-        <el-date-picker
-          v-model="form.birthday"
-          class="customer-form__control"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="选择日期"
-        />
-      </el-form-item>
-      <el-form-item
-        label="微信号"
-        prop="wechat"
-      >
-        <el-input
-          v-model="form.wechat"
-          maxlength="64"
-          placeholder="选填"
-        />
-      </el-form-item>
-      <el-form-item
-        label="来源"
-        prop="source"
-      >
-        <el-input
-          v-model="form.source"
-          maxlength="32"
-          placeholder="选填，如：朋友介绍"
-        />
-      </el-form-item>
-      <el-form-item
-        label="标签"
-        prop="tagIds"
-      >
-        <el-select
-          v-model="form.tagIds"
-          class="customer-form__control"
-          multiple
-          clearable
-          placeholder="选择标签"
-        >
-          <el-option
-            v-for="tag in tags"
-            :key="tag.id"
-            :label="tag.name"
-            :value="tag.id"
-          />
-        </el-select>
-      </el-form-item>
-      <el-form-item
-        label="备注"
-        prop="remark"
-      >
-        <el-input
-          v-model="form.remark"
-          type="textarea"
-          :rows="3"
-          maxlength="500"
-          placeholder="选填"
-        />
-      </el-form-item>
+      <CustomerFieldsForm
+        v-model="form"
+        :tags="tags"
+      />
     </el-form>
     <template #footer>
       <el-button @click="visible = false">
@@ -141,21 +44,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
+import { ApiError, createCustomer, getCustomer, updateCustomer } from '@/api'
+import type { Tag } from '@/api'
 import {
-  ApiError,
-  attachCustomerTag,
-  createCustomer,
-  detachCustomerTag,
-  getCustomer,
-  updateCustomer,
-} from '@/api'
-import type { CustomerPayload, Tag } from '@/api'
-import { GENDER_LABELS } from '@/constants'
+  customerProfileFormFromDetail,
+  emptyCustomerProfileForm,
+  syncCustomerTags,
+  toCustomerPayload,
+} from '@/utils/customerProfile'
+import type { CustomerProfileForm } from '@/utils/customerProfile'
 
-// 新增 = customerId 为 null；编辑 = 传入客户 id（打开弹窗后拉取详情，含标签）。
+import CustomerFieldsForm from './CustomerFieldsForm.vue'
+
+// 新增 = customerId 为 null；编辑 = 传入 id（打开时拉详情回填，含标签）。
+// 标签不在 POST/PUT 请求体内，保存后经挂/摘接口做差集同步。
 const props = defineProps<{
   modelValue: boolean
   customerId: number | null
@@ -168,17 +73,6 @@ const emit = defineEmits<{
   saved: []
 }>()
 
-interface CustomerForm {
-  name: string
-  phone: string
-  gender: string
-  birthday: string | null
-  wechat: string
-  source: string
-  remark: string
-  tagIds: number[]
-}
-
 const visible = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value),
@@ -187,16 +81,16 @@ const visible = computed({
 const dialogTitle = computed(() => (props.customerId === null ? '新增客户' : '编辑客户'))
 
 const formRef = ref<FormInstance>()
-const form = reactive<CustomerForm>(emptyForm())
+const form = ref<CustomerProfileForm>(emptyCustomerProfileForm())
 const submitting = ref(false)
 const loadingDetail = ref(false)
 /** 编辑时详情加载失败：禁止保存，避免把空表单覆盖到已有客户 */
 const loadFailed = ref(false)
 const submitError = ref('')
-/** 编辑前的标签集合（仅未删除标签可编辑；历史软删除标签保持原样） */
+/** 编辑前的标签集合（仅未删除标签；历史软删除标签保持原样） */
 const originalTagIds = ref<number[]>([])
 
-const rules: FormRules<CustomerForm> = {
+const rules: FormRules<CustomerProfileForm> = {
   name: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
 }
 
@@ -206,44 +100,21 @@ watch(visible, (open) => {
   }
 })
 
-function emptyForm(): CustomerForm {
-  return {
-    name: '',
-    phone: '',
-    gender: '',
-    birthday: null,
-    wechat: '',
-    source: '',
-    remark: '',
-    tagIds: [],
-  }
-}
-
 /** 打开弹窗时初始化：新增清空表单；编辑拉取详情（含标签）回填 */
 async function prepare(): Promise<void> {
   submitError.value = ''
   loadFailed.value = false
-  Object.assign(form, emptyForm())
   originalTagIds.value = []
+  Object.assign(form.value, emptyCustomerProfileForm())
   const customerId = props.customerId
   if (customerId === null) {
     return
   }
   loadingDetail.value = true
   try {
-    const detail = await getCustomer(customerId)
-    const editableTagIds = detail.tags.filter((tag) => !tag.deleted).map((tag) => tag.id)
-    originalTagIds.value = editableTagIds
-    Object.assign(form, {
-      name: detail.name,
-      phone: detail.phone,
-      gender: detail.gender,
-      birthday: detail.birthday,
-      wechat: detail.wechat,
-      source: detail.source,
-      remark: detail.remark,
-      tagIds: [...editableTagIds],
-    })
+    const model = customerProfileFormFromDetail(await getCustomer(customerId))
+    originalTagIds.value = [...model.tagIds]
+    Object.assign(form.value, model)
   } catch (error) {
     // 拦截器已提示；同时禁止保存，避免空表单覆盖原数据
     loadFailed.value = true
@@ -267,15 +138,7 @@ async function handleSubmit(): Promise<void> {
   if (!valid) {
     return
   }
-  const payload: CustomerPayload = {
-    name: form.name.trim(),
-    phone: form.phone.trim(),
-    gender: form.gender,
-    birthday: form.birthday,
-    wechat: form.wechat.trim(),
-    source: form.source.trim(),
-    remark: form.remark,
-  }
+  const payload = toCustomerPayload(form.value)
   submitting.value = true
   try {
     let customerId: number
@@ -288,7 +151,7 @@ async function handleSubmit(): Promise<void> {
     emit('saved')
     visible.value = false
     try {
-      await syncTags(customerId, [...originalTagIds.value], [...form.tagIds])
+      await syncCustomerTags(customerId, [...originalTagIds.value], [...form.value.tagIds])
     } catch (error) {
       ElMessage.warning(`客户资料已保存，但标签未全部保存：${errorMessage(error)}`)
     }
@@ -300,18 +163,6 @@ async function handleSubmit(): Promise<void> {
   }
 }
 
-/** 差异同步标签：新增的挂载、取消的摘除；历史软删除标签不在编辑集合内，保持原样 */
-async function syncTags(customerId: number, before: number[], after: number[]): Promise<void> {
-  const toAttach = after.filter((tagId) => !before.includes(tagId))
-  const toDetach = before.filter((tagId) => !after.includes(tagId))
-  for (const tagId of toAttach) {
-    await attachCustomerTag(customerId, tagId)
-  }
-  for (const tagId of toDetach) {
-    await detachCustomerTag(customerId, tagId)
-  }
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : '保存失败，请稍后重试'
 }
@@ -320,9 +171,5 @@ function errorMessage(error: unknown): string {
 <style scoped>
 .customer-form__alert {
   margin-bottom: 16px;
-}
-
-.customer-form__control {
-  width: 100%;
 }
 </style>

@@ -48,6 +48,58 @@ export interface CustomerListQuery {
   page_size?: number
 }
 
+/** 分页查询参数（客户详情各流水接口共用） */
+export interface PageQuery {
+  page?: number
+  page_size?: number
+}
+
+/** 消费记录 DTO，对齐 server/internal/controller/customer_detail.go 的 OrderView */
+export interface CustomerOrder {
+  id: number
+  order_no: string
+  customer_id: number
+  employee_id: number | null
+  original_amount_cents: number
+  discount_amount_cents: number
+  paid_amount_cents: number
+  payment_method: string
+  status: string
+  remark: string
+  created_at: string
+  updated_at: string
+}
+
+/** 余额流水 DTO（BalanceTransactionView）：金额整数分且带符号 */
+export interface BalanceTransaction {
+  id: number
+  customer_id: number
+  type: string
+  amount_cents: number
+  balance_before_cents: number
+  balance_after_cents: number
+  reference_type: string
+  reference_id: number | null
+  operator_id: number | null
+  remark: string
+  created_at: string
+}
+
+/** 积分流水 DTO（PointsTransactionView）：积分带符号 */
+export interface PointsTransaction {
+  id: number
+  customer_id: number
+  type: string
+  points: number
+  balance_before: number
+  balance_after: number
+  reference_type: string
+  reference_id: number | null
+  operator_id: number | null
+  remark: string
+  created_at: string
+}
+
 /** GET /customers：分页 + 筛选（查询/新增/编辑 both，删除仅 admin，04-API.md:72） */
 export function listCustomers(query: CustomerListQuery = {}): Promise<PageData<Customer>> {
   return get<PageData<Customer>>('/customers', { ...query })
@@ -74,4 +126,32 @@ export function updateCustomer(id: number, payload: CustomerPayload): Promise<Cu
  */
 export function deleteCustomer(id: number): Promise<Record<string, never>> {
   return del<Record<string, never>>(`/customers/${id}`)
+}
+
+/** GET /customers/:id/orders（04-API.md:80）：分页 + 时间倒序 */
+export function listCustomerOrders(
+  customerId: number,
+  query: PageQuery = {},
+): Promise<PageData<CustomerOrder>> {
+  return get<PageData<CustomerOrder>>(`/customers/${customerId}/orders`, { ...query })
+}
+
+/** GET /customers/:id/balance-transactions（04-API.md:81）：分页 + 时间倒序 */
+export function listCustomerBalanceTransactions(
+  customerId: number,
+  query: PageQuery = {},
+): Promise<PageData<BalanceTransaction>> {
+  return get<PageData<BalanceTransaction>>(`/customers/${customerId}/balance-transactions`, {
+    ...query,
+  })
+}
+
+/** GET /customers/:id/points-transactions（04-API.md:82）：分页 + 时间倒序 */
+export function listCustomerPointsTransactions(
+  customerId: number,
+  query: PageQuery = {},
+): Promise<PageData<PointsTransaction>> {
+  return get<PageData<PointsTransaction>>(`/customers/${customerId}/points-transactions`, {
+    ...query,
+  })
 }

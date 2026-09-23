@@ -1,45 +1,14 @@
 ﻿<template>
   <section class="customer-list">
     <el-card shadow="never">
-      <div class="customer-list__toolbar">
-        <el-input
-          v-model="keyword"
-          class="customer-list__search"
-          placeholder="搜索手机号 / 姓名 / 微信号"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-        <el-select
-          v-model="tagFilter"
-          class="customer-list__filter"
-          placeholder="全部标签"
-          clearable
-          @change="handleSearch"
-        >
-          <el-option
-            v-for="tag in tags"
-            :key="tag.id"
-            :label="tag.name"
-            :value="tag.id"
-          />
-        </el-select>
-        <el-button
-          type="primary"
-          @click="handleSearch"
-        >
-          搜索
-        </el-button>
-        <el-button @click="handleReset">
-          重置
-        </el-button>
-        <span class="customer-list__spacer" />
-        <el-button
-          type="primary"
-          @click="openCreate"
-        >
-          新增客户
-        </el-button>
-      </div>
+      <CustomerToolbar
+        v-model:keyword="keyword"
+        v-model:tag-filter="tagFilter"
+        :tags="tags"
+        @search="handleSearch"
+        @reset="handleReset"
+        @create="openCreate"
+      />
 
       <el-table
         v-loading="loading"
@@ -48,15 +17,26 @@
         class="customer-list__table"
       >
         <el-table-column
-          prop="name"
           label="姓名"
           min-width="110"
-        />
+        >
+          <template #default="{ row }">
+            <el-link
+              type="primary"
+              @click="goDetail(row.id)"
+            >
+              {{ row.name }}
+            </el-link>
+          </template>
+        </el-table-column>
         <el-table-column
-          prop="phone"
           label="手机号"
           min-width="130"
-        />
+        >
+          <template #default="{ row }">
+            {{ row.phone !== '' ? row.phone : '—' }}
+          </template>
+        </el-table-column>
         <el-table-column
           label="性别"
           width="80"
@@ -144,6 +124,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { deleteCustomer, listCustomers, listTags } from '@/api'
@@ -155,9 +136,11 @@ import { useAuthStore } from '@/stores/auth'
 import { formatCents, formatDateTime } from '@/utils/format'
 
 import CustomerFormDialog from './components/CustomerFormDialog.vue'
+import CustomerToolbar from './components/CustomerToolbar.vue'
 
 // 客户列表（07-UI.md:5-18、84-94）：搜索优先手机号、标签筛选、分页、新增/编辑弹窗。
 const auth = useAuthStore()
+const router = useRouter()
 /** 删除仅 admin（06-BUSINESS-RULES.md §7）；隐藏按钮是 UI 简化，最终边界在后端 RBAC */
 const isAdmin = computed(() => auth.role === 'admin')
 
@@ -225,6 +208,11 @@ function openEdit(customerId: number): void {
   dialogVisible.value = true
 }
 
+/** 进入客户详情（07-UI.md:44-46） */
+function goDetail(customerId: number): void {
+  void router.push(`/customers/${customerId}`)
+}
+
 /** 新增/编辑成功后刷新（列表与标签都可能变化） */
 function handleSaved(): void {
   void loadTags()
@@ -256,25 +244,6 @@ async function handleDelete(customerId: number, customerName: string): Promise<v
 </script>
 
 <style scoped>
-.customer-list__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.customer-list__search {
-  width: 260px;
-}
-
-.customer-list__filter {
-  width: 180px;
-}
-
-.customer-list__spacer {
-  flex: 1;
-}
-
 .customer-list__table {
   width: 100%;
 }
