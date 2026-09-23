@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -95,6 +97,43 @@ func (h *OrderController) Create(c *gin.Context) {
 	Success(c, view)
 }
 
+// List 处理 GET /api/v1/orders（both）：
+// status、customer_id、employee_id、start_date/end_date、page/page_size、sort=recent。
+//
+// 非法过滤/日期/分页参数宽松回退（与客户列表一致，不得 500）。
+func (h *OrderController) List(c *gin.Context) {
+	customerID, _ := strconv.ParseInt(strings.TrimSpace(c.Query("customer_id")), 10, 64)
+	employeeID, _ := strconv.ParseInt(strings.TrimSpace(c.Query("employee_id")), 10, 64)
+	result, err := h.orders.List(c.Request.Context(), service.OrderListQuery{
+		Status:     strings.TrimSpace(c.Query("status")),
+		CustomerID: customerID,
+		EmployeeID: employeeID,
+		StartDate:  c.Query("start_date"),
+		EndDate:    c.Query("end_date"),
+		Sort:       strings.TrimSpace(c.Query("sort")),
+		PageQuery:  parsePageQuery(c),
+	})
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	SuccessPage(c, result, newOrderRowView)
+}
+
+// Get 处理 GET /api/v1/orders/:id（both）：订单 + 明细快照；不存在 → 404。
+func (h *OrderController) Get(c *gin.Context) {
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	detail, err := h.orders.Get(c.Request.Context(), id)
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	Success(c, newOrderDetailResponse(detail))
+}
+
 // newOrderItemInputs 把请求明细映射为 service 输入。
 func newOrderItemInputs(items []orderItemRequest) []service.OrderItemInput {
 	inputs := make([]service.OrderItemInput, 0, len(items))
@@ -146,5 +185,18 @@ func newOrderCreateView(result *service.OrderCreateResult) OrderDetailView {
 	return OrderDetailView{
 		OrderView: newNamedOrderView(result.Order, result.CustomerName, result.EmployeeName),
 		Items:     newOrderItemViews(result.Items),
+	}
+}
+
+// newOrderRowView 把订单列表读取行转为 DTO（含客户/员工名）。
+func newOrderRowView(row *service.OrderListRow) OrderView {
+	return newNamedOrderView(&row.Order, row.CustomerName, row.EmployeeName)
+}
+
+// newOrderDetailResponse 把订单详情聚合转为 DTO（订单 + 明细快照）。
+func newOrderDetailResponse(detail *service.OrderDetail) OrderDetailView {
+	return OrderDetailView{
+		OrderView: newNamedOrderView(&detail.Order, detail.CustomerName, detail.EmployeeName),
+		Items:     newOrderItemViews(detail.Items),
 	}
 }

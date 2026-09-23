@@ -104,6 +104,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.GET("/services/:id", itemCtl.Get)
 	// 订单：创建/查询 both（04-API.md:127-135）。
 	both.POST("/orders", orderCtl.Create)
+	both.GET("/orders", orderCtl.List)
+	both.GET("/orders/:id", orderCtl.Get)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
