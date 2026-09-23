@@ -42,12 +42,15 @@ function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
 }
 
 /** 未登录/凭证失效：清除本地 token 并整页跳转登录页（不依赖 router，避免 api -> router 反向依赖） */
-function handleUnauthorized(): void {
+function handleUnauthorized(message: string): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
-  ElMessage.error('登录已失效，请重新登录')
-  if (window.location.pathname !== LOGIN_PATH) {
-    window.location.assign(LOGIN_PATH)
+  // 登录页上的 401 就是登录失败本身：展示后端文案，不提示"登录已失效"
+  if (window.location.pathname === LOGIN_PATH) {
+    ElMessage.error(message)
+    return
   }
+  ElMessage.error('登录已失效，请重新登录')
+  window.location.assign(LOGIN_PATH)
 }
 
 function toApiError(error: unknown): ApiError {
@@ -86,7 +89,7 @@ http.interceptors.response.use(
     }
     const message = payload.message !== '' ? payload.message : '请求失败'
     if (isUnauthorizedCode(payload.code)) {
-      handleUnauthorized()
+      handleUnauthorized(message)
     } else {
       ElMessage.error(message)
     }
@@ -95,7 +98,7 @@ http.interceptors.response.use(
   (error: unknown) => {
     const apiError = toApiError(error)
     if (isUnauthorizedCode(apiError.code)) {
-      handleUnauthorized()
+      handleUnauthorized(apiError.message)
     } else {
       ElMessage.error(apiError.message)
     }
