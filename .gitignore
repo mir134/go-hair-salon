@@ -23,6 +23,9 @@ node_modules/
 server/hair-salon-server
 server/hair-salon-server.exe
 
+# ===== 部署目录（todo 61/62 本地组装：exe + web/dist + config.yaml + data/ + logs/，禁止提交）=====
+deploy/
+
 # ===== 本地工具 / 编排状态（非源码）=====
 .codegraph/
 .omo/
