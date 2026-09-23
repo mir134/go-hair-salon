@@ -268,4 +268,12 @@ function goPendingOrders(): void {
   gap: 16px;
   margin-top: 16px;
 }
+
+/* 手机端（<768px）：最近消费/充值两栏在 351px 可用宽度下会被 420px 最小轨道裁切，
+   降为单列（task-53 evidence 记录的布局修复） */
+@media (max-width: 767px) {
+  .dashboard__recent {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
