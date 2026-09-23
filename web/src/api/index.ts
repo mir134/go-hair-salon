@@ -58,6 +58,20 @@ export type {
   OrderSubmitStatus,
 } from './order'
 export {
+  createBalanceAdjustment,
+  createRecharge,
+  listBalanceTransactions,
+  listRecharges,
+} from './recharge'
+export type {
+  BalanceAdjustmentPayload,
+  BalanceAdjustmentResult,
+  Recharge,
+  RechargeCreatePayload,
+  RechargeListQuery,
+  RechargePaymentMethod,
+} from './recharge'
+export {
   createService,
   createServiceCategory,
   deleteService,

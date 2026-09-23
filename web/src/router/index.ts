@@ -44,6 +44,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
   '/customers': () => import('@/views/customer/CustomerListView.vue'),
   '/orders': () => import('@/views/order/OrderListView.vue'),
+  '/recharges': () => import('@/views/recharge/RechargeListView.vue'),
   '/services': () => import('@/views/service/ServiceListView.vue'),
 }
 
@@ -81,6 +82,14 @@ const routes: RouteRecordRaw[] = [
         name: 'order-detail',
         component: () => import('@/views/order/OrderDetailView.vue'),
         meta: { title: '订单详情', roles: ['admin', 'staff'], navPath: '/orders' },
+      },
+      // 新增充值（07-UI.md:68-74、plan todo 33）：非导航项，高亮「充值」菜单；
+      // 入口：充值列表「新增充值」与客户详情「充值」（带 ?customer_id= 预选客户）
+      {
+        path: 'recharges/new',
+        name: 'recharge-new',
+        component: () => import('@/views/recharge/RechargeCreateView.vue'),
+        meta: { title: '新增充值', roles: ['admin', 'staff'], navPath: '/recharges' },
       },
       // 客户详情（07-UI.md:44-46）：非导航项，高亮「客户」菜单
       {

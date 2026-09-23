@@ -48,6 +48,24 @@ export const PAYMENT_METHOD_LABELS: Readonly<Record<string, string>> = {
 /** 支付方式选项顺序（消费第 4 步与结账弹窗共用，04-API.md:24） */
 export const PAYMENT_METHODS: readonly OrderPaymentMethod[] = ['cash', 'wechat', 'alipay', 'balance']
 
+/**
+ * 充值可选支付方式（07-UI.md:70）：现金 / 微信 / 支付宝。
+ * 「余额」是消费侧支付方式（06-BUSINESS-RULES.md:24），充值用它会使余额自我增值，故不提供。
+ */
+export const RECHARGE_PAYMENT_METHODS: readonly OrderPaymentMethod[] = ['cash', 'wechat', 'alipay']
+
+/** 充值记录状态文案（model/const.go:50-54、03-DATABASE.md:182） */
+export const RECHARGE_STATUS_LABELS: Readonly<Record<string, string>> = {
+  active: '有效',
+  refunded: '已冲正',
+}
+
+/** 充值记录状态标签色 */
+export const RECHARGE_STATUS_TAG_TYPES: Readonly<Record<string, ElementTagType>> = {
+  active: 'success',
+  refunded: 'info',
+}
+
 /** 余额流水类型文案（model/const.go:35-41、03-DATABASE.md:206-214） */
 export const BALANCE_TX_TYPE_LABELS: Readonly<Record<string, string>> = {
   recharge: '充值',
