@@ -58,7 +58,20 @@ npm run dev
 
 ## 开发约定
 
-- 后端 `go test ./...`、`go vet ./...` 必须通过；前端 `npm run build` 必须通过。
+提交前必须执行以下命令清单，全部通过才算完成（todo 57 基线）：
+
+```bash
+# 后端（server/）
+gofmt -l .              # 输出为空（无未格式化文件）
+go vet ./...            # 无告警
+go test ./... -count=1  # 全部通过
+
+# 前端（web/）
+npm run lint            # eslint --max-warnings 0
+npm run build           # vue-tsc --noEmit && vite build
+```
+
+- 后端 `go test ./...`、`go vet ./...`、`gofmt -l .`（空）必须通过；前端 `npm run lint`、`npm run build` 必须通过。
 - 金额一律使用 int64 整数分，禁止 float64。
 - 账务（充值 / 消费 / 退款 / 调整）必须事务化、可追溯，核心流水禁止物理删除。
 - SQLite 数据库只放本机磁盘，禁止放在 SMB/NFS/NAS 等网络共享目录。
