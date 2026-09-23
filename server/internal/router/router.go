@@ -153,6 +153,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.POST("/orders/:id/refund", orderCtl.Refund)
 	// 余额调整仅 admin（04-API.md:176-193、06 §7）。
 	adminOnly.POST("/customers/:id/balance-adjustments", adjustCtl.Adjust)
+	// 充值冲正仅 admin（04-API.md:159-164、06 §5:56-65）。
+	adminOnly.POST("/recharges/:id/refund", rechargeCtl.Refund)
 
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
 	//   adminOnly 仅 admin；both 为 admin + staff。

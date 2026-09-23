@@ -100,6 +100,24 @@ func (h *RechargeController) List(c *gin.Context) {
 	SuccessPage(c, result, newRechargeRowView)
 }
 
+// Refund 处理 POST /api/v1/recharges/:id/refund（admin）：充值冲正。
+//
+// 成功 → 200 + 冲正后的充值记录（status=refunded，金额保留）；
+// 仅 active 可冲正（否则 409，重复冲正同一记录）；
+// 余额 < 本金+赠送 → 422（防负余额，事务整体回滚，记录保持 active）。
+func (h *RechargeController) Refund(c *gin.Context) {
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	result, err := h.recharges.RefundRecharge(c.Request.Context(), id)
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	Success(c, newRechargeView(result.Record, result.CustomerName))
+}
+
 // newRechargeView 把充值记录模型转为 DTO。
 func newRechargeView(record *model.RechargeRecord, customerName string) RechargeView {
 	return RechargeView{

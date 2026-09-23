@@ -53,6 +53,46 @@ func (r *RechargeRepository) FindByRequestID(ctx context.Context, requestID stri
 	return &record, nil
 }
 
+// FindByID 按主键查询充值记录；不存在返回 ErrNotFound（冲正失败后的 404/409 翻译用）。
+func (r *RechargeRepository) FindByID(ctx context.Context, id int64) (*model.RechargeRecord, error) {
+	var record model.RechargeRecord
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &record, nil
+}
+
+// FindByIDTx 在事务内按主键查询充值记录；不存在返回 ErrNotFound。
+func (r *RechargeRepository) FindByIDTx(ctx context.Context, tx Tx, id int64) (*model.RechargeRecord, error) {
+	var record model.RechargeRecord
+	if err := tx.WithContext(ctx).Where("id = ?", id).First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &record, nil
+}
+
+// MarkRefundedTx 在事务内执行 active → refunded 的条件状态迁移（仅 admin 冲正入口调用）：
+//
+//	UPDATE recharge_records SET status='refunded' WHERE id=? AND status='active'
+//
+// 返回是否命中（RowsAffected > 0）：0 表示记录不存在或已冲正（重复冲正 → 409）。
+// 状态只置位不删除：原始记录与本金/赠送流水必须保留（06 §5:65）。
+func (r *RechargeRepository) MarkRefundedTx(ctx context.Context, tx Tx, id int64) (bool, error) {
+	res := tx.WithContext(ctx).Model(&model.RechargeRecord{}).
+		Where("id = ? AND status = ?", id, model.RechargeStatusActive).
+		Update("status", model.RechargeStatusRefunded)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}
+
 // CreateTx 在事务内创建充值记录。
 //
 // 唯一索引冲突（request_id）返回 ErrDuplicate：service 层据此识别
