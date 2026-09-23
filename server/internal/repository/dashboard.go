@@ -21,6 +21,13 @@ type OrderWindowStats struct {
 	CustomerCount int64 // 去重客户数
 }
 
+// EmployeePerformanceRow 是员工业绩聚合行（employee_id 为空 = 明细与订单都未指定员工）。
+type EmployeePerformanceRow struct {
+	EmployeeID   *int64 `gorm:"column:employee_id"`
+	EmployeeName string `gorm:"column:employee_name"`
+	AmountCents  int64  `gorm:"column:amount_cents"`
+}
+
 // DashboardRepository 提供 Dashboard 只读聚合访问。
 type DashboardRepository struct {
 	db *gorm.DB
@@ -138,4 +145,36 @@ func (r *DashboardRepository) RecentRecharges(ctx context.Context, limit int) ([
 		Limit(limit).
 		Find(&rows).Error
 	return rows, err
+}
+
+// SumEmployeeItems 按员工汇总窗口内指定状态订单的明细成交金额（plan todo 45、D2 决议）：
+//
+//   - 员工归属优先 order_items.employee_id，为空回退 orders.employee_id（03 索引
+//     orders(employee_id,created_at) 与 order_items.employee_id 双存在，明细为最细粒度）；
+//   - completed 订单按 created_at（成交日）归窗；refunded 订单按 updated_at（退款发生日）归窗，
+//     与 06 §8:98 营业额冲减同一口径；
+//   - 软删除明细（挂单删明细只置 deleted_at，AGENTS.md 第 5 节）不计入；
+//   - 明细与订单都未指定员工的归入 employee_id 为 NULL 的聚合行（调用方决定展示策略）。
+func (r *DashboardRepository) SumEmployeeItems(ctx context.Context, status string, startAt, endAt time.Time) ([]EmployeePerformanceRow, error) {
+	timeColumn := "orders.created_at"
+	if status == model.OrderStatusRefunded {
+		timeColumn = "orders.updated_at"
+	}
+	var rows []EmployeePerformanceRow
+	err := r.db.WithContext(ctx).
+		Table("order_items").
+		Select("COALESCE(order_items.employee_id, orders.employee_id) AS employee_id, "+
+			"COALESCE(employees.name, '') AS employee_name, "+
+			"COALESCE(SUM(order_items.amount_cents), 0) AS amount_cents").
+		Joins("JOIN orders ON orders.id = order_items.order_id").
+		Joins("LEFT JOIN employees ON employees.id = COALESCE(order_items.employee_id, orders.employee_id)").
+		Where("order_items.deleted_at IS NULL").
+		Where("orders.status = ?", status).
+		Where(timeColumn+" >= ? AND "+timeColumn+" < ?", startAt, endAt).
+		Group("COALESCE(order_items.employee_id, orders.employee_id)").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

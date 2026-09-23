@@ -129,3 +129,36 @@ func newDashboardRangeQuery(c *gin.Context) service.DashboardRangeQuery {
 		EndDate:   c.Query("end_date"),
 	}
 }
+
+// employeePerformanceView 是员工业绩聚合行（employee_id 为空 = 明细与订单都未指定员工）。
+type employeePerformanceView struct {
+	EmployeeID   *int64 `json:"employee_id"`
+	EmployeeName string `json:"employee_name"`
+	AmountCents  int64  `json:"amount_cents"`
+}
+
+// employeePerformanceReportView 是 GET /dashboard/employee-performance data。
+type employeePerformanceReportView struct {
+	StartDate string                    `json:"start_date"`
+	EndDate   string                    `json:"end_date"`
+	Items     []employeePerformanceView `json:"items"`
+}
+
+// EmployeePerformance 处理 GET /api/v1/dashboard/employee-performance（both）：
+// 日期范围内按员工汇总成交金额（明细无员工回退订单员工；退款按退款发生日冲减，plan todo 45）。
+func (h *DashboardController) EmployeePerformance(c *gin.Context) {
+	report, err := h.dashboard.EmployeePerformance(c.Request.Context(), newDashboardRangeQuery(c))
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	items := make([]employeePerformanceView, 0, len(report.Items))
+	for _, row := range report.Items {
+		items = append(items, employeePerformanceView{
+			EmployeeID:   row.EmployeeID,
+			EmployeeName: row.EmployeeName,
+			AmountCents:  row.AmountCents,
+		})
+	}
+	Success(c, employeePerformanceReportView{StartDate: report.StartDate, EndDate: report.EndDate, Items: items})
+}

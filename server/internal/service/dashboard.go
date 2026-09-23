@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/mir134/go-hair-salon/server/internal/model"
 	"github.com/mir134/go-hair-salon/server/internal/repository"
 )
 
@@ -243,4 +246,103 @@ func (s *DashboardService) Customers(ctx context.Context, q DashboardRangeQuery)
 		})
 	}
 	return series, nil
+}
+
+// EmployeePerformance 是单个员工的业绩（amount_cents=成交金额净额，整数分）。
+type EmployeePerformance struct {
+	EmployeeID   *int64 // 为空 = 明细与订单都未指定员工（未分配）
+	EmployeeName string
+	AmountCents  int64
+}
+
+// EmployeePerformanceReport 是员工业绩报表（回显解析后的实际日期范围）。
+type EmployeePerformanceReport struct {
+	StartDate string
+	EndDate   string
+	Items     []EmployeePerformance
+}
+
+// EmployeePerformance 汇总日期范围内员工业绩（plan todo 45、D2 决议）：
+//
+//   - completed 明细按成交日（orders.created_at）计入，退款明细按退款发生日
+//     （orders.updated_at）冲减 —— 与 06 §8:98 营业额口径一致；
+//   - 员工归属优先明细 employee_id，为空回退订单 employee_id（repository.SumEmployeeItems）；
+//   - 净额排序：金额降序，其次 employee_id 升序（未分配员工排最后）。
+func (s *DashboardService) EmployeePerformance(ctx context.Context, q DashboardRangeQuery) (*EmployeePerformanceReport, error) {
+	start, endExclusive, err := q.resolve(time.Now(), time.Local)
+	if err != nil {
+		return nil, err
+	}
+	rangeStart, _ := localDayWindow(start, time.Local)
+	_, rangeEnd := localDayWindow(endExclusive.AddDate(0, 0, -1), time.Local)
+
+	completed, err := s.dashboard.SumEmployeeItems(ctx, model.OrderStatusCompleted, rangeStart, rangeEnd)
+	if err != nil {
+		return nil, fmt.Errorf("统计员工业绩失败: %w", err)
+	}
+	refunded, err := s.dashboard.SumEmployeeItems(ctx, model.OrderStatusRefunded, rangeStart, rangeEnd)
+	if err != nil {
+		return nil, fmt.Errorf("统计员工退款冲减失败: %w", err)
+	}
+
+	return &EmployeePerformanceReport{
+		StartDate: start.Format("2006-01-02"),
+		EndDate:   endExclusive.AddDate(0, 0, -1).Format("2006-01-02"),
+		Items:     mergeEmployeePerformance(completed, refunded),
+	}, nil
+}
+
+// mergeEmployeePerformance 合并「成交 +」与「退款 −」两组聚合行为净额口径。
+func mergeEmployeePerformance(completed, refunded []repository.EmployeePerformanceRow) []EmployeePerformance {
+	byEmployee := make(map[int64]*EmployeePerformance, len(completed))
+	var unassigned *EmployeePerformance
+	pick := func(id *int64) *EmployeePerformance {
+		if id == nil {
+			if unassigned == nil {
+				unassigned = &EmployeePerformance{}
+			}
+			return unassigned
+		}
+		row, ok := byEmployee[*id]
+		if !ok {
+			row = &EmployeePerformance{EmployeeID: id}
+			byEmployee[*id] = row
+		}
+		return row
+	}
+	for _, row := range completed {
+		item := pick(row.EmployeeID)
+		item.EmployeeName = row.EmployeeName
+		item.AmountCents += row.AmountCents
+	}
+	for _, row := range refunded {
+		item := pick(row.EmployeeID)
+		if item.EmployeeName == "" {
+			item.EmployeeName = row.EmployeeName
+		}
+		item.AmountCents -= row.AmountCents
+	}
+
+	items := make([]EmployeePerformance, 0, len(byEmployee)+1)
+	for _, row := range byEmployee {
+		items = append(items, *row)
+	}
+	if unassigned != nil {
+		items = append(items, *unassigned)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].AmountCents != items[j].AmountCents {
+			return items[i].AmountCents > items[j].AmountCents
+		}
+		return employeeSortKey(items[i].EmployeeID) < employeeSortKey(items[j].EmployeeID)
+	})
+	return items
+}
+
+// employeeSortKey 把可空员工 id 映射为可比较排序键（未分配排最后）。
+func employeeSortKey(id *int64) int64 {
+	if id == nil {
+		return math.MaxInt64
+	}
+	return *id
 }

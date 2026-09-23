@@ -146,6 +146,7 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.GET("/dashboard/summary", dashboardCtl.Summary)
 	both.GET("/dashboard/revenue", dashboardCtl.Revenue)
 	both.GET("/dashboard/customers", dashboardCtl.Customers)
+	both.GET("/dashboard/employee-performance", dashboardCtl.EmployeePerformance)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
