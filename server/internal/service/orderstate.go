@@ -100,11 +100,11 @@ func itemStandardUnit(item *model.OrderItem) int64 {
 	return item.UnitPriceCents + item.DiscountAmountCents/int64(item.Quantity)
 }
 
-// writeItemLog 在事务提交后写订单明细审计日志（挂单编辑与取消共用）。
+// writeOrderLog 在事务提交后写订单状态/明细审计日志（挂单明细编辑与取消共用）。
 //
 // 改价必须留痕（记录操作人、原价、成交价、原因，06 §3.1）；日志写入失败不阻断已提交的交易。
-func (s *OrderService) writeItemLog(ctx context.Context, action string, orderID int64, content string) {
+func (s *OrderService) writeOrderLog(ctx context.Context, action string, orderID int64, content string) {
 	if err := s.logs.WriteLog(ctx, action, "order", orderID, content); err != nil {
-		slog.Default().Error("写入订单明细审计日志失败", "order_id", orderID, "action", action, "err", err)
+		slog.Default().Error("写入订单审计日志失败", "order_id", orderID, "action", action, "err", err)
 	}
 }

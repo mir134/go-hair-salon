@@ -129,6 +129,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.POST("/services", itemCtl.Create)
 	adminOnly.PUT("/services/:id", itemCtl.Update)
 	adminOnly.DELETE("/services/:id", itemCtl.Delete)
+	// 订单取消仅 admin（04-API.md:140,152-153、06 §7）。
+	adminOnly.POST("/orders/:id/cancel", orderCtl.Cancel)
 
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
 	//   adminOnly 仅 admin；both 为 admin + staff。

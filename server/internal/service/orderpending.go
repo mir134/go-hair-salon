@@ -100,7 +100,7 @@ func (s *OrderService) AddItem(ctx context.Context, orderID int64, in OrderItemA
 	if err != nil {
 		return nil, s.pendingEditError(ctx, orderID, err)
 	}
-	s.writeItemLog(ctx, "order_item_add", orderID, fmt.Sprintf(
+	s.writeOrderLog(ctx, "order_item_add", orderID, fmt.Sprintf(
 		"挂单 %s 追加服务 %s ×%d，成交单价 %d 分", order.OrderNo, service.Name, in.Quantity, unitPrice))
 	return s.Get(ctx, orderID)
 }
@@ -180,7 +180,7 @@ func (s *OrderService) UpdateItem(ctx context.Context, ref OrderItemRef, in Orde
 		content = fmt.Sprintf("挂单 %s 修改明细 %s 改价：成交单价 %d → %d 分，数量 %d；改价原因：%s",
 			order.OrderNo, current.ServiceNameSnapshot, current.UnitPriceCents, newUnit, newQuantity, strings.TrimSpace(in.DiscountReason))
 	}
-	s.writeItemLog(ctx, "order_item_update", ref.OrderID, content)
+	s.writeOrderLog(ctx, "order_item_update", ref.OrderID, content)
 	return s.Get(ctx, ref.OrderID)
 }
 
@@ -234,7 +234,7 @@ func (s *OrderService) RemoveItem(ctx context.Context, ref OrderItemRef) (*Order
 			return nil, err
 		}
 	}
-	s.writeItemLog(ctx, "order_item_delete", ref.OrderID, fmt.Sprintf(
+	s.writeOrderLog(ctx, "order_item_delete", ref.OrderID, fmt.Sprintf(
 		"挂单 %s 删除明细 %s ×%d（成交单价 %d 分）",
 		order.OrderNo, removed.ServiceNameSnapshot, removed.Quantity, removed.UnitPriceCents))
 	return s.Get(ctx, ref.OrderID)

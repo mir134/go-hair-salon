@@ -6,11 +6,12 @@ import (
 	"github.com/mir134/go-hair-salon/server/internal/service"
 )
 
-// 本文件承载挂单的状态流转接口（plan todo 27、04-API.md:150-154）：
+// 本文件承载挂单的状态流转接口（plan todo 27-28、04-API.md:150-154）：
 //
 //	POST /orders/:id/pay     结账：pending → completed（both）
+//	POST /orders/:id/cancel  取消：pending → cancelled（仅 admin）
 //
-// 权限边界：路由为 both（04-API.md:129）；取消（admin）见 ordercancel.go。
+// 权限边界：结账 both、取消 admin（04-API.md:129,152）；业务状态规则在 service 层强制。
 
 // orderPayRequest 是 POST /orders/:id/pay 请求体（结账时记录支付方式）。
 type orderPayRequest struct {
@@ -31,6 +32,23 @@ func (h *OrderController) Pay(c *gin.Context) {
 		return
 	}
 	detail, err := h.orders.Pay(c.Request.Context(), id, service.OrderPayInput{PaymentMethod: req.PaymentMethod})
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	Success(c, newOrderDetailResponse(detail))
+}
+
+// Cancel 处理 POST /api/v1/orders/:id/cancel（admin）：取消挂单。
+//
+// 成功 → 200 + 取消后的订单详情；仅 pending 可取消（completed/refunded/cancelled → 422），
+// 不产生任何资金/余额/积分变动（04-API.md:152-153、06 §3:37）。
+func (h *OrderController) Cancel(c *gin.Context) {
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	detail, err := h.orders.Cancel(c.Request.Context(), id)
 	if err != nil {
 		Fail(c, err)
 		return
