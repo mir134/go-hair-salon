@@ -34,7 +34,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/services', title: '服务', roles: ['admin'] },
   { path: '/employees', title: '员工', roles: ['admin'] },
   { path: '/logs', title: '日志', roles: ['admin'] },
-  { path: '/system', title: '系统', roles: ['admin'] },
+  { path: '/settings', title: '系统', roles: ['admin'] },
 ]
 
 /**
@@ -46,6 +46,8 @@ const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
   '/orders': () => import('@/views/order/OrderListView.vue'),
   '/recharges': () => import('@/views/recharge/RechargeListView.vue'),
   '/services': () => import('@/views/service/ServiceListView.vue'),
+  '/logs': () => import('@/views/log/OperationLogListView.vue'),
+  '/settings': () => import('@/views/system/SystemSettingsView.vue'),
 }
 
 const routes: RouteRecordRaw[] = [

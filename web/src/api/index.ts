@@ -73,6 +73,8 @@ export type {
   RechargeListQuery,
   RechargePaymentMethod,
 } from './recharge'
+export { listOperationLogs } from './log'
+export type { OperationLog, OperationLogListQuery } from './log'
 export {
   createService,
   createServiceCategory,
@@ -90,3 +92,10 @@ export type {
   ServiceCategoryPayload,
   ServicePayload,
 } from './service'
+export {
+  SETTING_KEY_POINTS_PER_YUAN,
+  SETTING_KEY_SHOP_NAME,
+  listSettings,
+  updateSetting,
+} from './settings'
+export type { Setting } from './settings'
