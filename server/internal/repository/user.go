@@ -66,6 +66,43 @@ func (r *UserRepository) Count(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+// List 返回用户列表（含已停用），按 id 升序；status 非 nil 时按状态过滤。
+func (r *UserRepository) List(ctx context.Context, status *int) ([]model.User, error) {
+	query := r.db.WithContext(ctx).Model(&model.User{})
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	var users []model.User
+	if err := query.Order("id ASC").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// UpdateAdminFields 管理入口的原子更新：status 与/或 password_hash 一次 UPDATE 写入
+// （调用方保证至少提供一个，避免出现「只改了一半」的中间态）；updated_at 由 GORM 维护。
+//
+// passwordHash 为空表示不改密码；status 为 nil 表示不改状态；用户不存在时返回 ErrNotFound。
+func (r *UserRepository) UpdateAdminFields(ctx context.Context, id int64, status *int, passwordHash string) error {
+	updates := make(map[string]any, 2)
+	if status != nil {
+		updates["status"] = *status
+	}
+	if passwordHash != "" {
+		updates["password_hash"] = passwordHash
+	}
+	res := r.db.WithContext(ctx).Model(&model.User{}).
+		Where("id = ?", id).
+		Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // UpdatePassword 更新指定用户的密码哈希；用户不存在时返回 ErrNotFound。
 func (r *UserRepository) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
 	res := r.db.WithContext(ctx).Model(&model.User{}).

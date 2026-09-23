@@ -37,7 +37,7 @@ func newUserSvc(t *testing.T) (*service.UserService, *gorm.DB) {
 	if err := repository.Migrate(db); err != nil {
 		t.Fatalf("repository.Migrate: %v", err)
 	}
-	return service.NewUserService(repository.NewUserRepository(db)), db
+	return service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db)), db
 }
 
 func TestSeedAdmin(t *testing.T) {

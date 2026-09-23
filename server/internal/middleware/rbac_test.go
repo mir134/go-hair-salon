@@ -65,7 +65,7 @@ func newRBACEnv(t *testing.T) *rbacEnv {
 		t.Fatalf("repository.Migrate: %v", err)
 	}
 
-	users := service.NewUserService(repository.NewUserRepository(db))
+	users := service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db))
 	tokens := service.NewTokenService(rbacTestSecret, time.Hour)
 	ctx := context.Background()
 	if created, err := users.SeedAdmin(ctx, "Admin-Pwd-1"); err != nil || !created {

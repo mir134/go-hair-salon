@@ -88,7 +88,7 @@ func run() error {
 	logger.Info("settings 默认值已就绪")
 
 	// 初始管理员播种（幂等）：users 为空时用 INITIAL_ADMIN_PASSWORD 创建 admin。
-	userService := service.NewUserService(repository.NewUserRepository(db))
+	userService := service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db))
 	created, err := userService.SeedAdmin(context.Background(), cfg.InitialAdminPassword)
 	if err != nil {
 		logger.Error("初始管理员播种失败", "err", err)

@@ -61,7 +61,7 @@ func newAuthEnv(t *testing.T) *authTestEnv {
 	env := &authTestEnv{
 		engine: engine,
 		db:     db,
-		users:  service.NewUserService(repository.NewUserRepository(db)),
+		users:  service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db)),
 		logBuf: logBuf,
 	}
 	ctx := context.Background()

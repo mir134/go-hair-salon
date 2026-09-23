@@ -40,7 +40,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	engine.GET("/health", controller.Health(db, logger))
 
 	// 依赖装配：controller → service → repository（02-AGENTS.md:15-26）。
-	userSvc := service.NewUserService(repository.NewUserRepository(db))
+	employeeRepo := repository.NewEmployeeRepository(db)
+	userSvc := service.NewUserService(repository.NewUserRepository(db), employeeRepo)
 	logSvc := service.NewOperationLogService(repository.NewOperationLogRepository(db))
 	tokenSvc := service.NewTokenService(opts.JWTSecret, opts.TokenTTL)
 	authSvc := service.NewAuthService(userSvc, tokenSvc, logSvc)
@@ -55,9 +56,9 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	categoryCtl := controller.NewServiceCategoryController(categorySvc, logSvc)
 	itemSvc := service.NewServiceItemService(repository.NewServiceItemRepository(db), categoryRepo)
 	itemCtl := controller.NewServiceItemController(itemSvc, logSvc)
-	employeeRepo := repository.NewEmployeeRepository(db)
 	employeeSvc := service.NewEmployeeService(employeeRepo)
 	employeeCtl := controller.NewEmployeeController(employeeSvc, logSvc)
+	userAdminCtl := controller.NewUserAdminController(userSvc, logSvc)
 	orderRepo := repository.NewOrderRepository(db)
 	orderSvc := service.NewOrderService(service.OrderServiceDeps{
 		Tx:        repository.NewTransactor(db),
@@ -173,6 +174,10 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.GET("/employees/:id", employeeCtl.Get)
 	adminOnly.PUT("/employees/:id", employeeCtl.Update)
 	adminOnly.DELETE("/employees/:id", employeeCtl.Delete)
+	// 用户管理仅 admin（D6 决议）：停用/启用走 status、重置密码；无物理删除（06 §11:120-125）。
+	adminOnly.GET("/users", userAdminCtl.List)
+	adminOnly.POST("/users", userAdminCtl.Create)
+	adminOnly.PUT("/users/:id", userAdminCtl.Update)
 
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
 	//   adminOnly 仅 admin；both 为 admin + staff。
