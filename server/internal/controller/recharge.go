@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -79,6 +81,25 @@ func (h *RechargeController) Create(c *gin.Context) {
 	Success(c, view)
 }
 
+// List 处理 GET /api/v1/recharges（both）：
+// customer_id、start_date/end_date、page/page_size 筛选与分页。
+//
+// 非法过滤/日期/分页参数宽松回退（与订单列表一致，不得 500）。
+func (h *RechargeController) List(c *gin.Context) {
+	customerID, _ := strconv.ParseInt(strings.TrimSpace(c.Query("customer_id")), 10, 64)
+	result, err := h.recharges.ListRecharges(c.Request.Context(), service.RechargeListQuery{
+		CustomerID: customerID,
+		StartDate:  c.Query("start_date"),
+		EndDate:    c.Query("end_date"),
+		PageQuery:  parsePageQuery(c),
+	})
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	SuccessPage(c, result, newRechargeRowView)
+}
+
 // newRechargeView 把充值记录模型转为 DTO。
 func newRechargeView(record *model.RechargeRecord, customerName string) RechargeView {
 	return RechargeView{
@@ -95,4 +116,9 @@ func newRechargeView(record *model.RechargeRecord, customerName string) Recharge
 		Remark:              record.Remark,
 		CreatedAt:           record.CreatedAt,
 	}
+}
+
+// newRechargeRowView 把充值列表读取行转为 DTO（含客户名）。
+func newRechargeRowView(row *service.RechargeListRow) RechargeView {
+	return newRechargeView(&row.RechargeRecord, row.CustomerName)
 }

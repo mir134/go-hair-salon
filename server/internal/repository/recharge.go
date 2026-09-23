@@ -3,11 +3,30 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/mir134/go-hair-salon/server/internal/model"
 )
+
+// RechargeListFilter 是 GET /recharges 的查询条件（04-API.md:157-165、plan todo 31）。
+//
+// StartAt/EndAt 为 created_at 的半开区间 [StartAt, EndAt)，由 service 层按日期解析；
+// 全部条件为空时返回全量充值记录（分页由 Offset/Limit 控制）。
+type RechargeListFilter struct {
+	CustomerID int64
+	StartAt    *time.Time
+	EndAt      *time.Time
+	Offset     int
+	Limit      int
+}
+
+// RechargeRow 是 recharge_records 与客户姓名的联表读取结果（列表 DTO 需要）。
+type RechargeRow struct {
+	model.RechargeRecord
+	CustomerName string
+}
 
 // RechargeRepository 提供 recharge_records 表的读写访问。
 //
@@ -46,4 +65,52 @@ func (r *RechargeRepository) CreateTx(ctx context.Context, tx Tx, record *model.
 		return err
 	}
 	return nil
+}
+
+// rechargeSelect / rechargeJoins：充值记录列 + 客户名左联。
+//
+// 历史充值记录必须显示客户姓名，因此客户软删除不参与联表过滤
+// （原始 JOIN 不带 deleted_at 条件）；联表只用于读取姓名，不改变结果集。
+const (
+	rechargeSelect = "recharge_records.*, customers.name AS customer_name"
+	rechargeJoins  = "LEFT JOIN customers ON customers.id = recharge_records.customer_id"
+)
+
+// List 按条件分页查询充值记录（含客户名），时间倒序（最新在前，同秒按 id 倒序）。
+func (r *RechargeRepository) List(ctx context.Context, f RechargeListFilter) ([]RechargeRow, int64, error) {
+	query := r.filtered(ctx, f)
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var rows []RechargeRow
+	err := query.Select(rechargeSelect).Joins(rechargeJoins).
+		Order("recharge_records.created_at DESC, recharge_records.id DESC").
+		Limit(f.Limit).
+		Offset(f.Offset).
+		Find(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
+// filtered 构造带全部过滤条件的查询（不联表，供 Count 复用）。
+//
+// 过滤列一律加 recharge_records. 前缀：Find 阶段会左联 customers，
+// created_at 等同名列在联表后必须限定表名（否则 ambiguous column）。
+func (r *RechargeRepository) filtered(ctx context.Context, f RechargeListFilter) *gorm.DB {
+	query := r.db.WithContext(ctx).Model(&model.RechargeRecord{})
+	if f.CustomerID > 0 {
+		query = query.Where("recharge_records.customer_id = ?", f.CustomerID)
+	}
+	if f.StartAt != nil {
+		query = query.Where("recharge_records.created_at >= ?", *f.StartAt)
+	}
+	if f.EndAt != nil {
+		query = query.Where("recharge_records.created_at < ?", *f.EndAt)
+	}
+	return query
 }

@@ -122,6 +122,7 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.POST("/orders/:id/pay", orderCtl.Pay)
 	// 充值：创建/查询 both（04-API.md:159-165）。
 	both.POST("/recharges", rechargeCtl.Create)
+	both.GET("/recharges", rechargeCtl.List)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),

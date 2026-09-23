@@ -68,6 +68,36 @@ type RechargeResult struct {
 	Created      bool
 }
 
+// RechargeListQuery 是 GET /recharges 查询输入（04-API.md:157-165）。
+//
+// 日期为 YYYY-MM-DD（UTC 日期边界，含当日），非法格式宽松回退为不过滤。
+type RechargeListQuery struct {
+	CustomerID int64
+	StartDate  string
+	EndDate    string
+	PageQuery
+}
+
+// RechargeListRow 是充值列表读取行（仓储联表结果的类型别名，避免重复建模）。
+type RechargeListRow = repository.RechargeRow
+
+// ListRecharges 按条件分页查询充值记录（时间倒序，最新在前）。
+func (s *RechargeService) ListRecharges(ctx context.Context, q RechargeListQuery) (*PageResult[RechargeListRow], error) {
+	startAt, endAt := parseDateRange(q.StartDate, q.EndDate)
+	offset, limit, page, pageSize := q.Normalize()
+	rows, total, err := s.recharges.List(ctx, repository.RechargeListFilter{
+		CustomerID: q.CustomerID,
+		StartAt:    startAt,
+		EndAt:      endAt,
+		Offset:     offset,
+		Limit:      limit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("查询充值列表失败: %w", err)
+	}
+	return &PageResult[RechargeListRow]{Items: rows, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
 // CreateRecharge 充值（04-API.md:167-174）：
 //
 //  1. 校验 request_id / 客户存在 / 本金 > 0 / 赠送 ≥ 0 / 实付 ≥ 0 / 支付方式合法；
