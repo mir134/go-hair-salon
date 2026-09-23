@@ -77,11 +77,16 @@ func (s *OrderService) applyPointsTx(ctx context.Context, tx repository.Tx, orde
 
 // writeCreateLog 在事务提交后写 order_create 审计日志。
 //
+// 挂单（pending）与直接完成使用同一 action，content 区分收款状态；
 // 改价原因必须留痕（06 §3.1：记录操作人、原价、成交价、原因）；
 // 日志写入失败不阻断已提交的交易（与既有控制器写日志策略一致）。
 func (s *OrderService) writeCreateLog(ctx context.Context, order *model.Order, reason string) {
 	content := fmt.Sprintf("创建订单 %s，原价 %d 分，优惠 %d 分，实付 %d 分",
 		order.OrderNo, order.OriginalAmountCents, order.DiscountAmountCents, order.PaidAmountCents)
+	if order.Status == model.OrderStatusPending {
+		content = fmt.Sprintf("创建挂单 %s，原价 %d 分，优惠 %d 分，待结账 %d 分",
+			order.OrderNo, order.OriginalAmountCents, order.DiscountAmountCents, order.PaidAmountCents)
+	}
 	if trimmed := strings.TrimSpace(reason); trimmed != "" {
 		content += fmt.Sprintf("；改价原因：%s", trimmed)
 	}

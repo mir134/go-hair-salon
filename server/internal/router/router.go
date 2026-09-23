@@ -106,6 +106,10 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.POST("/orders", orderCtl.Create)
 	both.GET("/orders", orderCtl.List)
 	both.GET("/orders/:id", orderCtl.Get)
+	// 挂单明细编辑：both（改价仅 admin 由 service 层强制）（04-API.md:136-138,149）。
+	both.POST("/orders/:id/items", orderCtl.AddItem)
+	both.PUT("/orders/:id/items/:item_id", orderCtl.UpdateItem)
+	both.DELETE("/orders/:id/items/:item_id", orderCtl.RemoveItem)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),

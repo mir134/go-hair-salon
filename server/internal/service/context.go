@@ -37,6 +37,16 @@ func OperatorID(ctx context.Context) (int64, bool) {
 	return id, ok
 }
 
+// OperatorIDPtr 返回当前登录用户 id 的指针（无登录上下文时返回 nil），
+// 供可空外键列（balance_transactions.operator_id、points_transactions.operator_id 等）使用。
+func OperatorIDPtr(ctx context.Context) *int64 {
+	id, ok := OperatorID(ctx)
+	if !ok {
+		return nil
+	}
+	return &id
+}
+
 // WithRequestMeta 把请求来源信息（ip/ua）写入 context（由请求上下文中间件调用）。
 func WithRequestMeta(ctx context.Context, ip, userAgent string) context.Context {
 	return context.WithValue(ctx, ctxKeyRequestMeta, RequestMeta{IP: ip, UserAgent: userAgent})

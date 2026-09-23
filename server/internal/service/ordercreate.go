@@ -26,13 +26,38 @@ func validateRequestID(raw string) (string, error) {
 	return requestID, nil
 }
 
+// resolveCreateStatus 解析创建订单的目标状态（04-API.md:133）：
+// 空串与 completed 均为直接完成（收款）；pending 为挂单（不收款）；其余 → 400。
+func resolveCreateStatus(raw string) (string, error) {
+	switch strings.TrimSpace(raw) {
+	case "", model.OrderStatusCompleted:
+		return model.OrderStatusCompleted, nil
+	case model.OrderStatusPending:
+		return model.OrderStatusPending, nil
+	default:
+		return "", BadRequest("status 仅支持 pending（挂单）或 completed（直接完成）")
+	}
+}
+
+// validateCreatePayment 校验创建订单的支付方式：
+// 直接完成必须提供合法支付方式；挂单未收款，允许为空（提供时必须合法）。
+func validateCreatePayment(method, status string) error {
+	if status == model.OrderStatusPending && strings.TrimSpace(method) == "" {
+		return nil
+	}
+	if !isValidPaymentMethod(method) {
+		return BadRequest("支付方式不合法")
+	}
+	return nil
+}
+
 // validateAndPrice 校验订单输入并完成定价：
 //   - 客户必须存在（含未软删除）→ 404；
-//   - 支付方式 ∈ {cash, wechat, alipay, balance} → 400；
+//   - 支付方式：直接完成必须合法 → 400；挂单可为空；
 //   - 员工可选；提供时必须存在 → 404；
 //   - 每行数量 > 0 → 400；服务必须存在且启用（EnsureEnabledForConsumption）→ 404/422；
-//   - 成交单价与标准价不同 → 仅 admin 且必须填写原因 → 403/400。
-func (s *OrderService) validateAndPrice(ctx context.Context, in OrderCreateInput) ([]orderItemPlan, *model.Customer, *model.Employee, error) {
+//   - 成交单价与标准价不同 → 仅 admin 且必须填写原因 → 403/400（挂单同样受改价约束）。
+func (s *OrderService) validateAndPrice(ctx context.Context, in OrderCreateInput, status string) ([]orderItemPlan, *model.Customer, *model.Employee, error) {
 	if in.CustomerID <= 0 {
 		return nil, nil, nil, BadRequest("客户不能为空")
 	}
@@ -44,8 +69,8 @@ func (s *OrderService) validateAndPrice(ctx context.Context, in OrderCreateInput
 		return nil, nil, nil, fmt.Errorf("查询客户失败: %w", err)
 	}
 
-	if !isValidPaymentMethod(in.PaymentMethod) {
-		return nil, nil, nil, BadRequest("支付方式不合法")
+	if err := validateCreatePayment(in.PaymentMethod, status); err != nil {
+		return nil, nil, nil, err
 	}
 
 	employee, err := s.ensureEmployee(ctx, in.EmployeeID)
@@ -67,13 +92,9 @@ func (s *OrderService) validateAndPrice(ctx context.Context, in OrderCreateInput
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		unitPrice := item.UnitPriceCents
-		if unitPrice < 0 {
-			return nil, nil, nil, BadRequest("成交单价不能为负（整数分）")
-		}
-		if unitPrice == 0 {
-			// 未提供成交价（含 JSON 缺省 0）→ 按标准价；服务标准价必 > 0（06 §2）。
-			unitPrice = service.PriceCents
+		unitPrice, err := resolveUnitPrice(item.UnitPriceCents, service.PriceCents)
+		if err != nil {
+			return nil, nil, nil, err
 		}
 		if unitPrice != service.PriceCents {
 			hasOverride = true
@@ -115,6 +136,20 @@ func (s *OrderService) ensureEmployee(ctx context.Context, employeeID *int64) (*
 		return nil, fmt.Errorf("查询员工失败: %w", err)
 	}
 	return employee, nil
+}
+
+// resolveUnitPrice 解析成交单价（整数分）：
+//   - 负数 → 400；
+//   - 0（含 JSON 缺省）→ 按标准价；服务标准价必 > 0（06 §2）；
+//   - 其余原样返回（与标准价不同即改价/折扣，由调用方做权限校验）。
+func resolveUnitPrice(raw, standardCents int64) (int64, error) {
+	if raw < 0 {
+		return 0, BadRequest("成交单价不能为负（整数分）")
+	}
+	if raw == 0 {
+		return standardCents, nil
+	}
+	return raw, nil
 }
 
 // ensureCanOverridePrice 校验改价权限与原因（06 §3.1：仅 admin 可改价，必须记录原因）。

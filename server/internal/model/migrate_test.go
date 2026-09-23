@@ -248,12 +248,15 @@ var expectedColumns = map[string][]string{
 	"service_categories":     {"id", "name", "sort", "status", "created_at", "updated_at"},
 	"services":               {"id", "category_id", "name", "price_cents", "duration_minutes", "status", "remark", "created_at", "updated_at", "deleted_at"},
 	"orders":                 {"id", "order_no", "request_id", "customer_id", "employee_id", "original_amount_cents", "discount_amount_cents", "paid_amount_cents", "payment_method", "status", "remark", "created_at", "updated_at"},
-	"order_items":            {"id", "order_id", "service_id", "service_name_snapshot", "quantity", "unit_price_cents", "discount_amount_cents", "amount_cents", "employee_id", "created_at"},
-	"recharge_records":       {"id", "customer_id", "request_id", "recharge_amount_cents", "gift_amount_cents", "actual_amount_cents", "payment_method", "status", "operator_id", "remark", "created_at"},
-	"balance_transactions":   {"id", "customer_id", "type", "amount_cents", "balance_before_cents", "balance_after_cents", "reference_type", "reference_id", "operator_id", "remark", "created_at"},
-	"points_transactions":    {"id", "customer_id", "type", "points", "balance_before", "balance_after", "reference_type", "reference_id", "operator_id", "remark", "created_at"},
-	"settings":               {"id", "key", "value", "description", "updated_by", "created_at", "updated_at"},
-	"operation_logs":         {"id", "operator_id", "action", "target_type", "target_id", "content", "ip", "user_agent", "created_at"},
+	// order_items.deleted_at 是 todo 26 的已决议新增列（超出 03-DATABASE.md:147-162 字段清单）：
+	// 04-API.md:138 要求 DELETE /orders/:id/items/:item_id，而 AGENTS.md 第 5 节红线
+	// 禁止 order_items 物理删除 —— 两文档冲突的唯一兼容实现是软删除（挂单明细只置 deleted_at，行保留）。
+	"order_items":          {"id", "order_id", "service_id", "service_name_snapshot", "quantity", "unit_price_cents", "discount_amount_cents", "amount_cents", "employee_id", "created_at", "deleted_at"},
+	"recharge_records":     {"id", "customer_id", "request_id", "recharge_amount_cents", "gift_amount_cents", "actual_amount_cents", "payment_method", "status", "operator_id", "remark", "created_at"},
+	"balance_transactions": {"id", "customer_id", "type", "amount_cents", "balance_before_cents", "balance_after_cents", "reference_type", "reference_id", "operator_id", "remark", "created_at"},
+	"points_transactions":  {"id", "customer_id", "type", "points", "balance_before", "balance_after", "reference_type", "reference_id", "operator_id", "remark", "created_at"},
+	"settings":             {"id", "key", "value", "description", "updated_by", "created_at", "updated_at"},
+	"operation_logs":       {"id", "operator_id", "action", "target_type", "target_id", "content", "ip", "user_agent", "created_at"},
 }
 
 func pragmaValue(t *testing.T, sqlDB *sql.DB, name string) string {

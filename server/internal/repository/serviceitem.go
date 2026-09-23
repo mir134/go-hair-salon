@@ -130,12 +130,13 @@ func (r *ServiceItemRepository) SoftDelete(ctx context.Context, id int64) error 
 	return nil
 }
 
-// CountOrderItems 统计引用该服务的订单明细行数（order_items 无软删除、只增不删）。
+// CountOrderItems 统计引用该服务的订单明细行数（含挂单软删除的明细）。
 //
-// > 0 表示服务已产生订单，禁止删除（只能停用）。
+// > 0 表示服务已产生订单（含仅在挂单中出现过的历史行），禁止删除（只能停用）：
+// 明细行永不物理删除（AGENTS.md 第 5 节），因此删除守卫必须把软删除行一并计入。
 func (r *ServiceItemRepository) CountOrderItems(ctx context.Context, serviceID int64) (int64, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&model.OrderItem{}).
+	err := r.db.WithContext(ctx).Unscoped().Model(&model.OrderItem{}).
 		Where("service_id = ?", serviceID).
 		Count(&count).Error
 	return count, err

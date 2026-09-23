@@ -33,7 +33,7 @@ type orderItemRequest struct {
 
 // orderCreateRequest 是 POST /orders 请求体（字段与 web/src/api/order.ts:63-73 对齐）。
 //
-// status 目前只接受空或 completed；挂单（pending）由 todo 26 提供。
+// status 为空/completed 表示直接完成收款，pending 表示挂单（不收款，04-API.md:145-149）。
 type orderCreateRequest struct {
 	RequestID      string             `json:"request_id"`
 	CustomerID     int64              `json:"customer_id"`
@@ -64,7 +64,7 @@ type OrderDetailView struct {
 	Items []OrderItemView `json:"items"`
 }
 
-// Create 处理 POST /api/v1/orders（both）：直接完成订单。
+// Create 处理 POST /api/v1/orders（both）：直接完成订单或挂单（status=pending）。
 //
 // 首次创建 → 201；同一 request_id 重复提交 → 200 + 原订单（幂等，04-API.md:283-286）。
 func (h *OrderController) Create(c *gin.Context) {
@@ -73,15 +73,12 @@ func (h *OrderController) Create(c *gin.Context) {
 		Fail(c, service.BadRequest("请求体 JSON 无效"))
 		return
 	}
-	if req.Status != "" && req.Status != model.OrderStatusCompleted {
-		Fail(c, service.BadRequest("仅支持直接完成订单（status=completed）"))
-		return
-	}
 	result, err := h.orders.Create(c.Request.Context(), service.OrderCreateInput{
 		RequestID:      req.RequestID,
 		CustomerID:     req.CustomerID,
 		EmployeeID:     req.EmployeeID,
 		PaymentMethod:  req.PaymentMethod,
+		Status:         req.Status,
 		DiscountReason: req.DiscountReason,
 		Items:          newOrderItemInputs(req.Items),
 	})
