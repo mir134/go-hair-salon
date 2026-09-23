@@ -13,6 +13,8 @@ declare module 'vue-router' {
     title?: string
     /** 可见该菜单的角色（仅导航简化，权限边界在后端 RBAC，07-UI.md:25-30） */
     roles?: readonly UserRole[]
+    /** 子页面（如客户详情）高亮的左侧导航路径；不设时用当前路径 */
+    navPath?: string
   }
 }
 
@@ -34,6 +36,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/system', title: '系统', roles: ['admin'] },
 ]
 
+/**
+ * 已落地的导航页面（后续 todo 逐个替换 PlaceholderView）。
+ * 键为 NAV_ITEMS 的 path，值为真实页面组件（懒加载）。
+ */
+const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
+  '/customers': () => import('@/views/customer/CustomerListView.vue'),
+}
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
@@ -45,13 +55,17 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/layouts/AppShell.vue'),
     meta: { requiresAuth: true },
-    // 各导航项先用占位页打通路由；业务页面由后续 todo 替换 component
-    children: NAV_ITEMS.map((item) => ({
-      path: item.path === '/' ? '' : item.path.slice(1),
-      name: item.path === '/' ? 'dashboard' : item.path.slice(1),
-      component: PlaceholderView,
-      meta: { title: item.title, roles: item.roles },
-    })),
+    children: [
+      // 导航项与左侧菜单（NAV_ITEMS）一一对应；未落地页面仍用占位页
+      ...NAV_ITEMS.map(
+        (item): RouteRecordRaw => ({
+          path: item.path === '/' ? '' : item.path.slice(1),
+          name: item.path === '/' ? 'dashboard' : item.path.slice(1),
+          component: NAV_COMPONENTS[item.path] ?? PlaceholderView,
+          meta: { title: item.title, roles: item.roles },
+        }),
+      ),
+    ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

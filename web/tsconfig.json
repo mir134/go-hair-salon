@@ -12,7 +12,12 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
+    // 关闭原因：Element Plus 2.14.6 的生成式 d.ts 中，部分 Prop 定义形如
+    //   { readonly type: PropType<T>; readonly validator: ((val: unknown) => boolean) | undefined }
+    // 该形状在 exactOptionalPropertyTypes 下无法匹配 Vue 的 PropOptions（可选属性不接受 | undefined），
+    // 使 ElSelect/ElOption 等组件的属性类型退化为定义对象本体（TS2322）。
+    // 关闭此项以保持 UI 组件类型可用；strict 及其余严格选项全部保持开启。
+    "exactOptionalPropertyTypes": false,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "resolveJsonModule": true,

@@ -8,6 +8,14 @@ export interface ApiEnvelope<T> {
   data: T
 }
 
+/** 分页接口 data 形态（04-API.md:35-44）：items 恒为数组（空结果为 []） */
+export interface PageData<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+}
+
 /** 业务/网络错误：拦截器已弹出提示，调用方可按需就地处理 */
 export class ApiError extends Error {
   readonly code: number
