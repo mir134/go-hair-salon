@@ -145,3 +145,23 @@ func (r *OrderRepository) MarkCancelledTx(ctx context.Context, tx Tx, orderID in
 	}
 	return res.RowsAffected > 0, nil
 }
+
+// MarkRefundedTx 在事务内执行 completed → refunded 的条件状态迁移（仅 admin 退款入口调用）：
+//
+//	UPDATE orders SET status='refunded', updated_at=? WHERE id=? AND status='completed'
+//
+// 返回是否命中（RowsAffected > 0）：0 表示订单不存在或不是 completed
+// （pending/cancelled 不可退款、refunded 不可重复退款 → 409）。
+// updated_at 取本次退款时间：营业额按退款发生日冲减（06 §8:98 字面口径），不回改历史。
+func (r *OrderRepository) MarkRefundedTx(ctx context.Context, tx Tx, orderID int64, now time.Time) (bool, error) {
+	res := tx.WithContext(ctx).Model(&model.Order{}).
+		Where("id = ? AND status = ?", orderID, model.OrderStatusCompleted).
+		Updates(map[string]any{
+			"status":     model.OrderStatusRefunded,
+			"updated_at": now,
+		})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}

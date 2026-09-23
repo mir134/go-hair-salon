@@ -149,6 +149,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.DELETE("/services/:id", itemCtl.Delete)
 	// 订单取消仅 admin（04-API.md:140,152-153、06 §7）。
 	adminOnly.POST("/orders/:id/cancel", orderCtl.Cancel)
+	// 订单全额退款仅 admin（04-API.md:129,139,155、06 §5/§7）。
+	adminOnly.POST("/orders/:id/refund", orderCtl.Refund)
 	// 余额调整仅 admin（04-API.md:176-193、06 §7）。
 	adminOnly.POST("/customers/:id/balance-adjustments", adjustCtl.Adjust)
 

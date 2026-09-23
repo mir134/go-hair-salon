@@ -43,6 +43,23 @@ func (r *LedgerRepository) CreatePointsTx(ctx context.Context, tx Tx, transactio
 	return tx.WithContext(ctx).Create(transaction).Error
 }
 
+// SumEarnedPointsByOrderTx 汇总订单产生的原 earn 积分（退款反向扣减依据）。
+//
+// 06 §6:73「退款按原消费积分进行反向扣减」且 §6:71 积分比例不追溯：
+// 反向扣减必须使用订单当次写入积分流水的快照值，而不是按当前 points_per_yuan 重算。
+func (r *LedgerRepository) SumEarnedPointsByOrderTx(ctx context.Context, tx Tx, orderID int64) (int64, error) {
+	var earned int64
+	err := tx.WithContext(ctx).Model(&model.PointsTransaction{}).
+		Where("reference_type = ? AND reference_id = ? AND type = ?",
+			model.ReferenceTypeOrder, orderID, model.PointsTxEarn).
+		Select("COALESCE(SUM(points), 0)").
+		Scan(&earned).Error
+	if err != nil {
+		return 0, err
+	}
+	return earned, nil
+}
+
 // listLedger 是余额/积分流水分页查询的公共实现：
 // 按 customer_id 过滤、created_at 倒序（同秒时按 id 倒序保证稳定）。
 func listLedger[T any](ctx context.Context, db *gorm.DB, entity any, customerID int64, offset, limit int) ([]T, int64, error) {

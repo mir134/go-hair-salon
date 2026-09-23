@@ -49,6 +49,7 @@ type orderAPIView struct {
 	Status              string             `json:"status"`
 	Items               []orderItemAPIView `json:"items"`
 	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
 }
 
 // seedEmployee 直接落库员工（员工维护 API 属 todo 38-40）。

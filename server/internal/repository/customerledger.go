@@ -70,6 +70,27 @@ func (r *CustomerRepository) AddPointsTx(ctx context.Context, tx Tx, customerID,
 		UpdateColumn("points", gorm.Expr("points + ?", points)).Error
 }
 
+// ApplyPointsDeltaTx 在事务内原子增减积分（points = points + delta）：
+//
+//	delta >= 0：直接累加（消费赠分）；
+//	delta < 0：附加条件 points >= |delta|（原子防负积分，RowsAffected=0 → 未生效，
+//	           06 §6:74 积分不得低于 0）。
+//
+// 返回 RowsAffected > 0（false = 客户不存在/已软删除，或负向变更会致负）。
+// 退款反向扣分与未来积分调整共用本原语；禁止「先查积分 → 应用层判断 → 再单独 UPDATE」
+// （04-API.md:288-298 并发竞态）。
+func (r *CustomerRepository) ApplyPointsDeltaTx(ctx context.Context, tx Tx, customerID, deltaPoints int64) (bool, error) {
+	query := tx.WithContext(ctx).Model(&model.Customer{}).Where("id = ?", customerID)
+	if deltaPoints < 0 {
+		query = query.Where("points >= ?", -deltaPoints)
+	}
+	res := query.UpdateColumn("points", gorm.Expr("points + ?", deltaPoints))
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}
+
 // PointsTx 读取事务内的当前积分（在 AddPointsTx 之后调用，用于积分流水 before/after）。
 func (r *CustomerRepository) PointsTx(ctx context.Context, tx Tx, customerID int64) (int64, error) {
 	var customer model.Customer
@@ -87,4 +108,15 @@ func (r *CustomerRepository) ApplyConsumptionTx(ctx context.Context, tx Tx, cust
 			"total_spent_cents": gorm.Expr("total_spent_cents + ?", paidCents),
 			"last_visit_at":     visitedAt,
 		}).Error
+}
+
+// SubtractTotalSpentTx 在事务内扣减累计消费（订单退款冲减，06 §8:91）：
+//
+//	total_spent_cents = total_spent_cents - refundedCents
+//
+// 事实来源是订单退款记录（本节只在同一事务内维护客户统计缓存）。
+func (r *CustomerRepository) SubtractTotalSpentTx(ctx context.Context, tx Tx, customerID, refundedCents int64) error {
+	return tx.WithContext(ctx).Model(&model.Customer{}).
+		Where("id = ?", customerID).
+		UpdateColumn("total_spent_cents", gorm.Expr("total_spent_cents - ?", refundedCents)).Error
 }

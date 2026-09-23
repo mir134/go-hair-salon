@@ -62,8 +62,9 @@ func (s *OrderService) recalcOrderAmountsTx(ctx context.Context, tx repository.T
 	return nil
 }
 
-// notPendingConflict 把「订单不是 pending」翻译为 404（不存在）或 409（状态冲突）。
+// notPendingConflict 把订单状态守卫未命中翻译为 404（不存在）或 409（状态冲突）。
 //
+// 用于结账/明细编辑（要求 pending）与退款（要求 completed）等「状态不满足即业务冲突」的场景；
 // 必须在事务结束之后调用：需要一次独立的非事务读取来区分 404/409
 // （唯一连接池下事务内做非事务读会自锁）。
 func (s *OrderService) notPendingConflict(ctx context.Context, orderID int64, message string) error {
