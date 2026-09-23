@@ -21,13 +21,31 @@
           无标签
         </el-tag>
       </div>
-      <el-button @click="openTagEditor">
+      <el-button
+        :size="isMobile ? 'large' : 'default'"
+        @click="openTagEditor"
+      >
         编辑标签
       </el-button>
     </div>
 
+    <!-- 手机端：余额/积分大字展示（核心核对信息，plan todo 54、07-UI.md:44-46） -->
+    <div
+      v-if="isMobile"
+      class="profile__hero"
+    >
+      <div class="profile__hero-cell">
+        <span class="profile__hero-label">余额（元）</span>
+        <span class="profile__hero-value">{{ formatCents(customer.balance_cents) }}</span>
+      </div>
+      <div class="profile__hero-cell">
+        <span class="profile__hero-label">积分</span>
+        <span class="profile__hero-value">{{ customer.points }}</span>
+      </div>
+    </div>
+
     <el-descriptions
-      :column="4"
+      :column="isMobile ? 1 : 4"
       border
     >
       <el-descriptions-item label="手机号">
@@ -42,10 +60,16 @@
       <el-descriptions-item label="微信号">
         {{ customer.wechat !== '' ? customer.wechat : '—' }}
       </el-descriptions-item>
-      <el-descriptions-item label="余额（元）">
+      <el-descriptions-item
+        v-if="!isMobile"
+        label="余额（元）"
+      >
         {{ formatCents(customer.balance_cents) }}
       </el-descriptions-item>
-      <el-descriptions-item label="积分">
+      <el-descriptions-item
+        v-if="!isMobile"
+        label="积分"
+      >
         {{ customer.points }}
       </el-descriptions-item>
       <el-descriptions-item label="累计消费（元）">
@@ -71,7 +95,7 @@
     <el-dialog
       v-model="tagDialogVisible"
       title="编辑标签"
-      width="420px"
+      :width="isMobile ? '92%' : '420px'"
     >
       <el-select
         v-model="selectedTagIds"
@@ -109,11 +133,13 @@ import { ElMessage } from 'element-plus'
 
 import { listTags } from '@/api'
 import type { Customer, Tag } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { GENDER_LABELS } from '@/constants'
 import { editableTagIds, syncCustomerTags } from '@/utils/customerProfile'
 import { formatCents, formatDateTime } from '@/utils/format'
 
 // 客户档案头部（07-UI.md:44-46）+ 标签编辑入口（挂/摘接口差集同步）。
+// 手机端（<768px）：余额/积分大字摘要 + 单列描述列表（plan todo 54）。
 const props = defineProps<{
   customer: Customer
   latestOrderAt: string | null
@@ -123,6 +149,8 @@ const emit = defineEmits<{
   /** 标签保存成功：父组件重新拉取客户 */
   updated: []
 }>()
+
+const isMobile = useIsMobile()
 
 const tagDialogVisible = ref(false)
 const allTags = ref<Tag[]>([])
@@ -180,6 +208,36 @@ async function handleSaveTags(): Promise<void> {
 .profile__name {
   font-size: 18px;
   font-weight: 600;
+}
+
+/* 手机端：余额/积分大字摘要（plan todo 54） */
+.profile__hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.profile__hero-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 10px;
+}
+
+.profile__hero-label {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.profile__hero-value {
+  color: var(--el-text-color-primary);
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .profile__tag-select {

@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="余额调整"
-    width="480px"
+    :width="isMobile ? '92%' : '480px'"
     :close-on-click-modal="false"
   >
     <el-alert
@@ -89,18 +89,22 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { ApiError, createBalanceAdjustment } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { formatCents } from '@/utils/format'
 import { parseSignedCents } from '@/utils/rechargeForm'
 
 // 余额调整弹窗（04-API.md:176-192、06-BUSINESS-RULES.md:62-65）：
 // 仅 admin（入口按钮由父级按角色渲染，后端 RBAC 才是最终边界）；
 // 金额可正负、原因必填、危险操作二次确认；422（将致负余额）展示后端文案。
+// 手机端弹窗宽度收缩为 92%，避免 375px 视口溢出（plan todo 53）。
 const props = defineProps<{
   modelValue: boolean
   customerId: number
   customerName: string
   balanceCents: number
 }>()
+
+const isMobile = useIsMobile()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]

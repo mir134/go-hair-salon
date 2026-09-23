@@ -1,6 +1,16 @@
 <template>
   <div class="tx-table">
+    <!-- 手机端（<768px）：卡片列表替代表格；点击卡片进订单详情（plan todo 54、07-UI.md:119） -->
+    <OrderCardList
+      v-if="isMobile"
+      :items="items"
+      :loading="loading"
+      :is-admin="false"
+      :actions="false"
+      @detail="goDetail"
+    />
     <el-table
+      v-else
       v-loading="loading"
       :data="items"
       row-key="id"
@@ -82,10 +92,12 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { listCustomerOrders } from '@/api'
 import type { CustomerOrder } from '@/api'
 import ListPagination from '@/components/ListPagination.vue'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { usePagedList } from '@/composables/usePagedList'
 import {
   ORDER_STATUS_LABELS,
@@ -93,9 +105,14 @@ import {
   PAYMENT_METHOD_LABELS,
 } from '@/constants'
 import { formatCents, formatDateTime } from '@/utils/format'
+import OrderCardList from '@/views/order/components/OrderCardList.vue'
 
 // 客户详情「消费记录」tab：GET /customers/:id/orders（分页 + 时间倒序）。
+// 手机端以卡片列表呈现（plan todo 54），点击卡片进订单详情。
 const props = defineProps<{ customerId: number }>()
+
+const router = useRouter()
+const isMobile = useIsMobile()
 
 const { items, total, page, pageSize, loading, load } = usePagedList<CustomerOrder>(
   (currentPage, currentPageSize) =>
@@ -108,5 +125,10 @@ onMounted(() => {
 
 function handlePageChange(): void {
   void load()
+}
+
+/** 手机端卡片点击 → 订单详情（PC 表格行保持纯展示，不受影响） */
+function goDetail(orderId: number): void {
+  void router.push(`/orders/${orderId}`)
 }
 </script>

@@ -36,6 +36,7 @@
 
       <!-- 卡片内的操作按钮不触发整卡跳转（@click.stop） -->
       <footer
+        v-if="actions"
         class="order-card__actions"
         @click.stop
       >
@@ -82,19 +83,24 @@ import { formatCents, formatDateTime } from '@/utils/format'
 // 字段是 OrderTable 表格列的卡片化投影：订单号/状态/客户/时间/支付方式/实付；
 // 待结账卡片提供 结账/编辑明细（取消仅 admin）。入参只要求用到的字段，
 // 订单列表（Order）与客户详情消费记录（CustomerOrder）两个 DTO 都能直接传入。
-defineProps<{
-  items: readonly {
-    id: number
-    order_no: string
-    customer_name?: string
-    paid_amount_cents: number
-    payment_method: string
-    status: string
-    created_at: string
-  }[]
-  loading: boolean
-  isAdmin: boolean
-}>()
+withDefaults(
+  defineProps<{
+    items: readonly {
+      id: number
+      order_no: string
+      customer_name?: string
+      paid_amount_cents: number
+      payment_method: string
+      status: string
+      created_at: string
+    }[]
+    loading: boolean
+    isAdmin: boolean
+    /** 是否渲染底部操作区（客户详情「消费记录」tab 只读展示时关闭） */
+    actions?: boolean
+  }>(),
+  { actions: true },
+)
 
 const emit = defineEmits<{
   detail: [id: number]

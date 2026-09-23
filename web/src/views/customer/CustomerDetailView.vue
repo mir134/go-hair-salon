@@ -1,6 +1,9 @@
 <template>
   <section class="customer-detail">
-    <div class="customer-detail__nav">
+    <div
+      class="customer-detail__nav"
+      :class="{ 'customer-detail__nav--mobile': isMobile }"
+    >
       <el-button
         link
         type="primary"
@@ -10,6 +13,7 @@
       </el-button>
       <div class="customer-detail__actions">
         <el-button
+          :size="actionSize"
           :disabled="customer === null"
           @click="goRecharge"
         >
@@ -17,6 +21,7 @@
         </el-button>
         <el-button
           type="primary"
+          :size="actionSize"
           :disabled="customer === null"
           @click="goConsume"
         >
@@ -25,6 +30,7 @@
         <!-- 余额调整仅 admin（06-BUSINESS-RULES.md:62）；隐藏按钮是 UI 简化，后端 RBAC 是最终边界 -->
         <el-button
           v-if="isAdmin"
+          :size="actionSize"
           :disabled="customer === null"
           @click="adjustVisible = true"
         >
@@ -110,6 +116,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { getCustomer, listCustomerOrders } from '@/api'
 import type { Customer } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { useAuthStore } from '@/stores/auth'
 
 import BalanceAdjustDialog from './components/BalanceAdjustDialog.vue'
@@ -125,6 +132,9 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const isAdmin = computed(() => auth.role === 'admin')
+const isMobile = useIsMobile()
+/** 手机端操作按钮加大到 large（触控目标 ≥44px，plan todo 53/54） */
+const actionSize = computed(() => (isMobile.value ? 'large' : 'default'))
 
 const customerId = computed(() => Number(String(route.params.id)))
 const customer = ref<Customer | null>(null)
@@ -210,6 +220,23 @@ function handleRechargeRefunded(): void {
 .customer-detail__actions {
   display: flex;
   gap: 8px;
+}
+
+/* 手机端：操作按钮换行铺满（plan todo 54） */
+.customer-detail__nav--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.customer-detail__nav--mobile .customer-detail__actions {
+  width: 100%;
+}
+
+.customer-detail__nav--mobile .customer-detail__actions .el-button {
+  flex: 1;
+  min-height: 44px;
+  margin-left: 0;
 }
 
 .customer-detail__ledger {
