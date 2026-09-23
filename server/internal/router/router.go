@@ -9,6 +9,7 @@ import (
 
 	"github.com/mir134/go-hair-salon/server/internal/controller"
 	"github.com/mir134/go-hair-salon/server/internal/middleware"
+	"github.com/mir134/go-hair-salon/server/internal/model"
 	"github.com/mir134/go-hair-salon/server/internal/repository"
 	"github.com/mir134/go-hair-salon/server/internal/service"
 )
@@ -48,9 +49,15 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	api := engine.Group("/api/v1")
 	auth := api.Group("/auth")
 	auth.POST("/login", authCtl.Login)
-	authed := auth.Group("", middleware.JWTAuth(tokenSvc, userSvc, logger))
+	// /auth/me 与 /auth/logout 为 both 分组：admin 与 staff 均可访问。
+	authed := auth.Group("",
+		middleware.JWTAuth(tokenSvc, userSvc, logger),
+		middleware.RequireRole(model.RoleAdmin, model.RoleStaff))
 	authed.GET("/me", authCtl.Me)
 	authed.POST("/logout", authCtl.Logout)
+	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
+	//   adminOnly := api.Group("", middleware.JWTAuth(...), middleware.RequireRole(model.RoleAdmin))
+	//   both      := api.Group("", middleware.JWTAuth(...), middleware.RequireRole(model.RoleAdmin, model.RoleStaff))
 
 	engine.NoRoute(newSPAHandler(logger))
 	return engine
