@@ -75,6 +75,13 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 		Logs:      logSvc,
 	})
 	rechargeCtl := controller.NewRechargeController(rechargeSvc)
+	adjustSvc := service.NewBalanceAdjustmentService(service.BalanceAdjustmentDeps{
+		Tx:        repository.NewTransactor(db),
+		Customers: customerRepo,
+		Ledger:    repository.NewLedgerRepository(db),
+		Logs:      logSvc,
+	})
+	adjustCtl := controller.NewBalanceAdjustmentController(adjustSvc)
 	detailSvc := service.NewCustomerDetailService(customerRepo,
 		orderRepo, repository.NewLedgerRepository(db))
 	detailCtl := controller.NewCustomerDetailController(detailSvc)
@@ -142,6 +149,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.DELETE("/services/:id", itemCtl.Delete)
 	// 订单取消仅 admin（04-API.md:140,152-153、06 §7）。
 	adminOnly.POST("/orders/:id/cancel", orderCtl.Cancel)
+	// 余额调整仅 admin（04-API.md:176-193、06 §7）。
+	adminOnly.POST("/customers/:id/balance-adjustments", adjustCtl.Adjust)
 
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
 	//   adminOnly 仅 admin；both 为 admin + staff。
