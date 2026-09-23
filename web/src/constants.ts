@@ -1,3 +1,5 @@
+import type { OrderPaymentMethod } from '@/api'
+
 /**
  * 顶栏门店名称占位常量。
  *
@@ -42,6 +44,9 @@ export const PAYMENT_METHOD_LABELS: Readonly<Record<string, string>> = {
   alipay: '支付宝',
   balance: '余额',
 }
+
+/** 支付方式选项顺序（消费第 4 步与结账弹窗共用，04-API.md:24） */
+export const PAYMENT_METHODS: readonly OrderPaymentMethod[] = ['cash', 'wechat', 'alipay', 'balance']
 
 /** 余额流水类型文案（model/const.go:35-41、03-DATABASE.md:206-214） */
 export const BALANCE_TX_TYPE_LABELS: Readonly<Record<string, string>> = {

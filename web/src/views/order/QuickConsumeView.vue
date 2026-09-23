@@ -19,7 +19,17 @@
       :balance-after="balanceAfter"
       @restart="startNew"
       @view-customer="goCustomer"
-    />
+    >
+      <!-- 挂单结果：直达「待结账」入口结账（07-UI.md:40、57） -->
+      <template #actions="{ pending }">
+        <el-button
+          v-if="pending"
+          @click="goPendingOrders"
+        >
+          去结账
+        </el-button>
+      </template>
+    </OrderResultCard>
 
     <template v-else>
       <OrderCustomerCard v-model:customer="customer" />
@@ -30,13 +40,16 @@
         :loading="loadingServices"
       />
       <OrderEmployeeCard />
+      <!-- 挂单不收款：隐藏支付方式（07-UI.md:52-55、06-BUSINESS-RULES.md:30） -->
       <OrderPaymentCard
+        v-if="mode === 'completed'"
         v-model:payment-method="paymentMethod"
         :customer="customer"
         :paid-cents="totals.paidCents"
       />
       <OrderConfirmCard
         v-model:reason="reason"
+        v-model:mode="mode"
         :items="items"
         :is-admin="isAdmin"
         :employee-label="EMPLOYEE_UNASSIGNED"
@@ -54,14 +67,15 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { ApiError, createOrder, getCustomer, listServices } from '@/api'
-import type { Customer, Order, OrderCreatePayload, OrderPaymentMethod, Service } from '@/api'
+import type { Customer, OrderCreatePayload, OrderPaymentMethod, OrderSubmitStatus } from '@/api'
 import { PAYMENT_METHOD_LABELS } from '@/constants'
 import { useAttemptRequestId } from '@/composables/useAttemptRequestId'
+import { useConsumeCatalog } from '@/composables/useConsumeCatalog'
+import { useConsumeSubmit } from '@/composables/useConsumeSubmit'
 import { useAuthStore } from '@/stores/auth'
 import {
   buildOrderItemPayloads,
-  itemUnitPriceCents,
+  consumeFormSignature,
   orderTotals,
   validateConsumeForm,
   type ConsumeItem,
@@ -74,9 +88,9 @@ import OrderItemsEditor from './components/OrderItemsEditor.vue'
 import OrderPaymentCard from './components/OrderPaymentCard.vue'
 import OrderResultCard from './components/OrderResultCard.vue'
 
-// 快速消费页（07-UI.md:36、48-67，plan todo 23）：
-// 客户 → 服务（多选+数量，自动带标准价）→ 员工（可选）→ 支付方式 → 金额预览 → 确认消费。
-// 只做「直接完成」（status=completed）；挂单/结账/取消属于 plan todo 29，本页不提供。
+// 快速消费页（07-UI.md:36、48-67，plan todo 23/29）：
+// 客户 → 服务（多选+数量，自动带标准价）→ 员工（可选）→ 支付方式 → 金额预览 → 确认。
+// 两种完成方式：直接完成（status=completed）或挂单（status=pending，开单不收款）。
 const EMPLOYEE_UNASSIGNED = '未指定'
 
 const route = useRoute()
@@ -89,64 +103,42 @@ const isAdmin = computed(() => auth.role === 'admin')
 const customer = ref<Customer | null>(null)
 const items = ref<ConsumeItem[]>([])
 const paymentMethod = ref<OrderPaymentMethod>('cash')
+/** 完成方式：直接完成 / 挂单（07-UI.md:52-55） */
+const mode = ref<OrderSubmitStatus>('completed')
 const reason = ref('')
-const services = ref<Service[]>([])
-const loadingServices = ref(false)
 
-const submitting = ref(false)
-const errorMessage = ref('')
-const result = ref<Order | null>(null)
-/** 消费后的客户最新余额（余额支付需明确显示，07-UI.md:117） */
-const balanceAfter = ref<number | null>(null)
+const { services, loadingServices, loadServices, presetCustomer } = useConsumeCatalog()
+const { submitting, errorMessage, result, balanceAfter, submit, reset } = useConsumeSubmit()
 
 const enabledServices = computed(() => services.value.filter((service) => service.status === 1))
 const totals = computed(() => orderTotals(items.value))
-const paymentLabel = computed(() => PAYMENT_METHOD_LABELS[paymentMethod.value] ?? paymentMethod.value)
+const paymentLabel = computed(() =>
+  mode.value === 'pending'
+    ? '—（挂单不收款）'
+    : (PAYMENT_METHOD_LABELS[paymentMethod.value] ?? paymentMethod.value),
+)
 const customerName = computed(() => customer.value?.name ?? '')
 
-/** 表单内容签名：变化即视为新的提交，作废旧幂等键（04-API.md:283-286） */
-function formSignature(): string {
-  return JSON.stringify({
-    customer_id: customer.value?.id ?? null,
-    payment_method: paymentMethod.value,
-    reason: reason.value.trim(),
-    items: items.value.map((item) => ({
-      service_id: item.service.id,
-      quantity: item.quantity,
-      unit_price_cents: itemUnitPriceCents(item),
-    })),
-  })
-}
-
-const requestId = useAttemptRequestId(formSignature)
+const requestId = useAttemptRequestId(() =>
+  consumeFormSignature({
+    customerId: customer.value?.id ?? null,
+    status: mode.value,
+    paymentMethod: paymentMethod.value,
+    reason: reason.value,
+    items: items.value,
+  }),
+)
 
 onMounted(() => {
   void loadServices()
   void applyPresetCustomer()
 })
 
-async function loadServices(): Promise<void> {
-  loadingServices.value = true
-  try {
-    services.value = await listServices()
-  } catch {
-    // 拦截器已提示；服务选择降级为空，可刷新重试
-  } finally {
-    loadingServices.value = false
-  }
-}
-
 /** 客户详情「快速消费」带 ?customer_id= 进入时预选客户 */
 async function applyPresetCustomer(): Promise<void> {
-  const raw = route.query.customer_id
-  const id = Number(Array.isArray(raw) ? raw[0] : raw)
-  if (!Number.isSafeInteger(id) || id <= 0) {
-    return
-  }
-  try {
-    customer.value = await getCustomer(id)
-  } catch {
-    // 拦截器已提示（客户不存在/已删除）；保持未选择状态，可手动搜索
+  const preset = await presetCustomer(route.query.customer_id)
+  if (preset !== null) {
+    customer.value = preset
   }
 }
 
@@ -170,45 +162,28 @@ async function handleSubmit(): Promise<void> {
     request_id: requestId.ensure(),
     customer_id: selectedCustomer.id,
     employee_id: null,
-    payment_method: paymentMethod.value,
-    status: 'completed',
+    status: mode.value,
     items: buildOrderItemPayloads(items.value),
+  }
+  // 挂单不收款：不带支付方式（06-BUSINESS-RULES.md:30）
+  if (mode.value === 'completed') {
+    payload.payment_method = paymentMethod.value
   }
   if (reason.value.trim() !== '') {
     payload.discount_reason = reason.value.trim()
   }
 
-  submitting.value = true
-  errorMessage.value = ''
-  try {
-    const order = await createOrder(payload)
-    result.value = order
-    requestId.clear()
-    ElMessage.success('消费已完成')
-    await refreshBalanceAfter(selectedCustomer.id)
-  } catch (error) {
-    // 失败不丢表单、不重置幂等键：后端 422（如余额不足）文案就地展示，重试仍复用同一 request_id
-    errorMessage.value = error instanceof ApiError ? error.message : '请求失败，请稍后重试'
-  } finally {
-    submitting.value = false
+  const ok = await submit(payload, mode.value)
+  if (!ok) {
+    return // 失败不丢表单、不重置幂等键，错误文案已就地展示
   }
-}
-
-async function refreshBalanceAfter(customerId: number): Promise<void> {
-  try {
-    const fresh = await getCustomer(customerId)
-    balanceAfter.value = fresh.balance_cents
-  } catch {
-    // 拦截器已提示；余额显示 "—"，订单结果仍然有效
-    balanceAfter.value = null
-  }
+  requestId.clear()
+  ElMessage.success(mode.value === 'pending' ? '已挂单，订单待结账' : '消费已完成')
 }
 
 /** 再开一单：保留当前客户（同一客户常连续开单），清空明细与金额状态 */
 function startNew(): void {
-  result.value = null
-  balanceAfter.value = null
-  errorMessage.value = ''
+  reset()
   items.value = []
   reason.value = ''
   paymentMethod.value = 'cash'
@@ -221,6 +196,11 @@ function goCustomer(): void {
     return
   }
   void router.push('/customers')
+}
+
+/** 挂单成功后直达「待结账」筛选（07-UI.md:40） */
+function goPendingOrders(): void {
+  void router.push({ path: '/orders', query: { status: 'pending' } })
 }
 
 function goBack(): void {

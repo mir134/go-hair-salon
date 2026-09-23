@@ -29,13 +29,12 @@
 import { computed } from 'vue'
 
 import type { Customer, OrderPaymentMethod } from '@/api'
-import { PAYMENT_METHOD_LABELS } from '@/constants'
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/constants'
 import { formatCents } from '@/utils/format'
 
 // 消费第 4 步：支付方式（07-UI.md:24 现金/微信/支付宝/余额）+ 余额支付差额提示。
 // 余额是否足够由后端事务判定（06-BUSINESS-RULES.md:27）；这里只提示，不阻止提交，
 // 以便用户能看到后端 422 文案。
-const PAYMENT_METHODS: readonly OrderPaymentMethod[] = ['cash', 'wechat', 'alipay', 'balance']
 
 const props = defineProps<{
   customer: Customer | null

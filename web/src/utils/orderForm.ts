@@ -1,4 +1,4 @@
-import type { OrderItemPayload, Service } from '@/api'
+import type { OrderItemPayload, OrderPaymentMethod, OrderSubmitStatus, Service } from '@/api'
 
 import { formatCents } from './format'
 import { parsePriceToCents } from './serviceForm'
@@ -97,4 +97,26 @@ export function buildOrderItemPayloads(items: readonly ConsumeItem[]): OrderItem
     quantity: item.quantity,
     unit_price_cents: itemUnitPriceCents(item),
   }))
+}
+
+/** 快速消费表单内容签名：变化即视为新的提交，作废旧幂等键（04-API.md:283-286） */
+export function consumeFormSignature(input: {
+  customerId: number | null
+  status: OrderSubmitStatus
+  paymentMethod: OrderPaymentMethod
+  reason: string
+  items: readonly ConsumeItem[]
+}): string {
+  return JSON.stringify({
+    customer_id: input.customerId,
+    status: input.status,
+    // 挂单不收款：支付方式不参与签名（06-BUSINESS-RULES.md:30）
+    payment_method: input.status === 'completed' ? input.paymentMethod : null,
+    reason: input.reason.trim(),
+    items: input.items.map((item) => ({
+      service_id: item.service.id,
+      quantity: item.quantity,
+      unit_price_cents: itemUnitPriceCents(item),
+    })),
+  })
 }

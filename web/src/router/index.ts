@@ -43,6 +43,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
  */
 const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
   '/customers': () => import('@/views/customer/CustomerListView.vue'),
+  '/orders': () => import('@/views/order/OrderListView.vue'),
   '/services': () => import('@/views/service/ServiceListView.vue'),
 }
 
@@ -73,6 +74,13 @@ const routes: RouteRecordRaw[] = [
         name: 'order-new',
         component: () => import('@/views/order/QuickConsumeView.vue'),
         meta: { title: '快速消费', roles: ['admin', 'staff'], navPath: '/orders' },
+      },
+      // 订单详情（07-UI.md:44-59）：非导航项，高亮「消费」菜单；待结账订单在此结账/编辑/取消
+      {
+        path: 'orders/:id',
+        name: 'order-detail',
+        component: () => import('@/views/order/OrderDetailView.vue'),
+        meta: { title: '订单详情', roles: ['admin', 'staff'], navPath: '/orders' },
       },
       // 客户详情（07-UI.md:44-46）：非导航项，高亮「客户」菜单
       {
