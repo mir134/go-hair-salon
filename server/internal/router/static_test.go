@@ -66,7 +66,7 @@ func newTestEngine(t *testing.T) *gin.Engine {
 	}
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
-	return router.New(db, logger)
+	return router.New(db, logger, router.Options{JWTSecret: "unit-test-secret"})
 }
 
 // doRequest 直接经引擎发起请求并返回响应。

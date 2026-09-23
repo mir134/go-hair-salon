@@ -36,7 +36,7 @@ func TestHealth(t *testing.T) {
 	}
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
-	engine := router.New(db, logger)
+	engine := router.New(db, logger, router.Options{JWTSecret: "unit-test-secret"})
 
 	// When: GET /health（无 Authorization）。
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)

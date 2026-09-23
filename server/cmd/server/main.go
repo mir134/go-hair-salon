@@ -102,7 +102,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort),
-		Handler:           router.New(db, logger),
+		Handler:           router.New(db, logger, router.Options{JWTSecret: cfg.JWTSecret}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serveErr := make(chan error, 1)
