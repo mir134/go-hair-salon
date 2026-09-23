@@ -158,6 +158,18 @@ func (s *CustomerService) Delete(ctx context.Context, id int64) error {
 // errPhoneTaken 是重复手机号的标准业务冲突（06-BUSINESS-RULES.md:8）。
 var errPhoneTaken = Conflict("手机号已存在，请编辑原客户")
 
+// ensureCustomerExists 校验客户存在（含未软删除）；不存在返回 404 客户不存在。
+// 客户详情聚合与标签挂载共用同一语义。
+func ensureCustomerExists(ctx context.Context, customers *repository.CustomerRepository, customerID int64) error {
+	if _, err := customers.FindByID(ctx, customerID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrCustomerNotFound
+		}
+		return fmt.Errorf("查询客户失败: %w", err)
+	}
+	return nil
+}
+
 // ensurePhoneAvailable 校验非空手机号未被其他未删除客户占用；空手机号直接放行。
 func (s *CustomerService) ensurePhoneAvailable(ctx context.Context, phone string, excludeID int64) error {
 	if phone == "" {

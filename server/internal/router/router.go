@@ -47,7 +47,9 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	authCtl := controller.NewAuthController(authSvc, logSvc)
 	customerRepo := repository.NewCustomerRepository(db)
 	customerSvc := service.NewCustomerService(customerRepo)
-	customerCtl := controller.NewCustomerController(customerSvc, logSvc)
+	tagSvc := service.NewTagService(repository.NewTagRepository(db), customerRepo)
+	customerCtl := controller.NewCustomerController(customerSvc, tagSvc, logSvc)
+	tagCtl := controller.NewTagController(tagSvc, logSvc)
 	detailSvc := service.NewCustomerDetailService(customerRepo,
 		repository.NewOrderRepository(db), repository.NewLedgerRepository(db))
 	detailCtl := controller.NewCustomerDetailController(detailSvc)
@@ -74,11 +76,19 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.GET("/customers/:id/orders", detailCtl.ListOrders)
 	both.GET("/customers/:id/balance-transactions", detailCtl.ListBalanceTransactions)
 	both.GET("/customers/:id/points-transactions", detailCtl.ListPointsTransactions)
+	// 标签：查询 both；挂/摘标签属于编辑客户（both）（04-API.md:97-108）。
+	both.GET("/tags", tagCtl.List)
+	both.POST("/customers/:id/tags", tagCtl.AttachToCustomer)
+	both.DELETE("/customers/:id/tags/:tag_id", tagCtl.DetachFromCustomer)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
 		middleware.RequireRole(model.RoleAdmin))
 	adminOnly.DELETE("/customers/:id", customerCtl.Delete)
+	// 标签创建/修改/删除仅 admin（04-API.md:99）。
+	adminOnly.POST("/tags", tagCtl.Create)
+	adminOnly.PUT("/tags/:id", tagCtl.Update)
+	adminOnly.DELETE("/tags/:id", tagCtl.Delete)
 
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
 	//   adminOnly 仅 admin；both 为 admin + staff。

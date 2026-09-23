@@ -19,12 +19,17 @@ import (
 // 控制器只做参数解析、DTO 转换与审计日志，业务规则在 service 层。
 type CustomerController struct {
 	customers *service.CustomerService
+	tags      *service.TagService
 	logs      *service.OperationLogService
 }
 
 // NewCustomerController 构造客户控制器。
-func NewCustomerController(customers *service.CustomerService, logs *service.OperationLogService) *CustomerController {
-	return &CustomerController{customers: customers, logs: logs}
+func NewCustomerController(
+	customers *service.CustomerService,
+	tags *service.TagService,
+	logs *service.OperationLogService,
+) *CustomerController {
+	return &CustomerController{customers: customers, tags: tags, logs: logs}
 }
 
 // customerRequest 是 POST/PUT /customers 请求体（DTO 与 Model 分离，04-API.md:300-302）。
@@ -40,6 +45,9 @@ type customerRequest struct {
 }
 
 // CustomerView 是客户 DTO：字段白名单，金额一律整数分，时间一律 UTC。
+//
+// Tags 仅在客户详情（GET /customers/:id）中填充；列表接口保持 []（不逐行查标签，
+// 避免 N+1 查询；列表按 tag_id 过滤由查询参数完成）。
 type CustomerView struct {
 	ID              int64      `json:"id"`
 	Name            string     `json:"name"`
@@ -55,6 +63,7 @@ type CustomerView struct {
 	BalanceCents    int64      `json:"balance_cents"`
 	Points          int64      `json:"points"`
 	Remark          string     `json:"remark"`
+	Tags            []TagView  `json:"tags"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
@@ -92,7 +101,7 @@ func (h *CustomerController) Create(c *gin.Context) {
 	Created(c, newCustomerView(customer))
 }
 
-// Get 处理 GET /api/v1/customers/:id。
+// Get 处理 GET /api/v1/customers/:id：详情包含标签（含已软删除的历史标签）。
 func (h *CustomerController) Get(c *gin.Context) {
 	id, ok := parseIDParam(c, "id")
 	if !ok {
@@ -103,7 +112,14 @@ func (h *CustomerController) Get(c *gin.Context) {
 		Fail(c, err)
 		return
 	}
-	Success(c, newCustomerView(customer))
+	tags, err := h.tags.ListCustomerTags(c.Request.Context(), id)
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	view := newCustomerView(customer)
+	view.Tags = newTagViews(tags)
+	Success(c, view)
 }
 
 // Update 处理 PUT /api/v1/customers/:id：按 id 更新原行，改手机号不新建客户。
@@ -199,6 +215,7 @@ func newCustomerView(customer *model.Customer) CustomerView {
 		BalanceCents:    customer.BalanceCents,
 		Points:          customer.Points,
 		Remark:          customer.Remark,
+		Tags:            []TagView{},
 		CreatedAt:       customer.CreatedAt,
 		UpdatedAt:       customer.UpdatedAt,
 	}

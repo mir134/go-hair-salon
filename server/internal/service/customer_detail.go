@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/mir134/go-hair-salon/server/internal/model"
@@ -69,11 +68,5 @@ func (s *CustomerDetailService) ListPointsTransactions(ctx context.Context, cust
 
 // ensureCustomer 校验客户存在（含未软删除）；不存在返回 404 客户不存在。
 func (s *CustomerDetailService) ensureCustomer(ctx context.Context, customerID int64) error {
-	if _, err := s.customers.FindByID(ctx, customerID); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return ErrCustomerNotFound
-		}
-		return fmt.Errorf("查询客户失败: %w", err)
-	}
-	return nil
+	return ensureCustomerExists(ctx, s.customers, customerID)
 }
