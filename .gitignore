@@ -1,0 +1,32 @@
+# ===== 运行期数据（禁止提交）=====
+# SQLite 数据库与运行数据只存在于本机磁盘，不进仓库
+data/
+logs/
+uploads/
+backups/
+
+# ===== SQLite 数据库文件（含 WAL/SHM 临时文件）=====
+*.db
+*.db-wal
+*.db-shm
+
+# ===== 本地配置（含密钥，禁止提交）=====
+# 真实配置含 JWT_SECRET 与初始管理员密码；仓库只提交 config.example.yaml
+config.yaml
+
+# ===== 前端 =====
+web/node_modules/
+web/dist/
+node_modules/
+
+# ===== Go 构建产物 =====
+server/hair-salon-server
+server/hair-salon-server.exe
+
+# ===== 本地工具 / 编排状态（非源码）=====
+.codegraph/
+.omo/
+
+# ===== 操作系统杂项 =====
+.DS_Store
+Thumbs.db
