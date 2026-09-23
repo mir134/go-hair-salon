@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mir134/go-hair-salon/server/internal/model"
 	"github.com/mir134/go-hair-salon/server/internal/repository"
@@ -50,4 +51,39 @@ func (s *OperationLogService) WriteLog(ctx context.Context, action, targetType s
 		return fmt.Errorf("写入操作日志失败（action=%s）: %w", action, err)
 	}
 	return nil
+}
+
+// OperationLogListQuery 是 GET /operation-logs 查询输入（04-API.md:237-243、plan todo 47）。
+//
+// 日期为 YYYY-MM-DD（UTC 日期边界，含当日），非法格式宽松回退为不过滤；
+// Action 精确匹配（TrimSpace 后空串表示不过滤）；OperatorID=0 表示不过滤。
+type OperationLogListQuery struct {
+	OperatorID int64
+	Action     string
+	StartDate  string
+	EndDate    string
+	PageQuery
+}
+
+// OperationLogListRow 是操作日志列表读取行（仓储联表结果的类型别名，避免重复建模）。
+type OperationLogListRow = repository.OperationLogRow
+
+// ListOperationLogs 按条件分页查询操作日志（时间倒序，最新在前，含操作人名）。
+//
+// 只读便利参数与既有列表接口一致：非法日期/页码宽松回退（service 层归一化），不得因此失败。
+func (s *OperationLogService) ListOperationLogs(ctx context.Context, q OperationLogListQuery) (*PageResult[OperationLogListRow], error) {
+	startAt, endAt := parseDateRange(q.StartDate, q.EndDate)
+	offset, limit, page, pageSize := q.Normalize()
+	rows, total, err := s.repo.List(ctx, repository.OperationLogListFilter{
+		OperatorID: q.OperatorID,
+		Action:     strings.TrimSpace(q.Action),
+		StartAt:    startAt,
+		EndAt:      endAt,
+		Offset:     offset,
+		Limit:      limit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("查询操作日志失败: %w", err)
+	}
+	return &PageResult[OperationLogListRow]{Items: rows, Total: total, Page: page, PageSize: pageSize}, nil
 }

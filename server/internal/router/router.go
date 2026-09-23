@@ -55,13 +55,16 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	categoryCtl := controller.NewServiceCategoryController(categorySvc, logSvc)
 	itemSvc := service.NewServiceItemService(repository.NewServiceItemRepository(db), categoryRepo)
 	itemCtl := controller.NewServiceItemController(itemSvc, logSvc)
+	employeeRepo := repository.NewEmployeeRepository(db)
+	employeeSvc := service.NewEmployeeService(employeeRepo)
+	employeeCtl := controller.NewEmployeeController(employeeSvc, logSvc)
 	orderRepo := repository.NewOrderRepository(db)
 	orderSvc := service.NewOrderService(service.OrderServiceDeps{
 		Tx:        repository.NewTransactor(db),
 		Orders:    orderRepo,
 		Customers: customerRepo,
 		Services:  itemSvc,
-		Employees: repository.NewEmployeeRepository(db),
+		Employees: employeeRepo,
 		Ledger:    repository.NewLedgerRepository(db),
 		Settings:  repository.NewSettingsRepository(db),
 		Logs:      logSvc,
@@ -85,6 +88,9 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	detailSvc := service.NewCustomerDetailService(customerRepo,
 		orderRepo, repository.NewLedgerRepository(db))
 	detailCtl := controller.NewCustomerDetailController(detailSvc)
+	settingsSvc := service.NewSettingsService(repository.NewSettingsRepository(db))
+	settingsCtl := controller.NewSettingsController(settingsSvc, logSvc)
+	logCtl := controller.NewOperationLogController(logSvc)
 
 	api := engine.Group("/api/v1")
 	auth := api.Group("/auth")
@@ -130,6 +136,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	// 充值：创建/查询 both（04-API.md:159-165）。
 	both.POST("/recharges", rechargeCtl.Create)
 	both.GET("/recharges", rechargeCtl.List)
+	// 系统设置：查询 both（仅公开键 shop_name/points_per_yuan，04-API.md:206-215）。
+	both.GET("/settings", settingsCtl.List)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
@@ -155,6 +163,16 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.POST("/customers/:id/balance-adjustments", adjustCtl.Adjust)
 	// 充值冲正仅 admin（04-API.md:159-164、06 §5:56-65）。
 	adminOnly.POST("/recharges/:id/refund", rechargeCtl.Refund)
+	// 系统设置修改仅 admin：未知键 404（不新增行）、非法值 400（04-API.md:206-215、06 §7）。
+	adminOnly.PUT("/settings/:key", settingsCtl.Update)
+	// 操作日志查询仅 admin（04-API.md:237-243、06 §7「staff 禁操作日志」）。
+	adminOnly.GET("/operation-logs", logCtl.List)
+	// 员工 CRUD 仅 admin；DELETE = 停用（status=0，行保留，D7 决议）（04-API.md:194-204、06 §7）。
+	adminOnly.GET("/employees", employeeCtl.List)
+	adminOnly.POST("/employees", employeeCtl.Create)
+	adminOnly.GET("/employees/:id", employeeCtl.Get)
+	adminOnly.PUT("/employees/:id", employeeCtl.Update)
+	adminOnly.DELETE("/employees/:id", employeeCtl.Delete)
 
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
 	//   adminOnly 仅 admin；both 为 admin + staff。
