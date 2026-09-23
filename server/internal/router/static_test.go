@@ -160,7 +160,9 @@ func TestAPINotFoundReturnsJSONEnvelope(t *testing.T) {
 	engine := newTestEngine(t)
 
 	// When/Then: 多形态 /api 路径均返回 JSON 404 信封。
-	for _, target := range []string{"/api", "/api/", "/api/v1/nonexist", "/api/v1/customers/999"} {
+	// 注意：/api/v1/customers 自 todo 13 起已注册（未带 token 时 401 属正常鉴权行为），
+	// 因此未命中路由必须用真正不存在的路径验证。
+	for _, target := range []string{"/api", "/api/", "/api/v1/nonexist", "/api/v1/unknown/999"} {
 		assertJSONNotFound(t, doRequest(t, engine, http.MethodGet, target), target)
 	}
 

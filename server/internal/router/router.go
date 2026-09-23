@@ -45,6 +45,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	tokenSvc := service.NewTokenService(opts.JWTSecret, opts.TokenTTL)
 	authSvc := service.NewAuthService(userSvc, tokenSvc, logSvc)
 	authCtl := controller.NewAuthController(authSvc, logSvc)
+	customerSvc := service.NewCustomerService(repository.NewCustomerRepository(db))
+	customerCtl := controller.NewCustomerController(customerSvc, logSvc)
 
 	api := engine.Group("/api/v1")
 	auth := api.Group("/auth")
@@ -55,9 +57,23 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 		middleware.RequireRole(model.RoleAdmin, model.RoleStaff))
 	authed.GET("/me", authCtl.Me)
 	authed.POST("/logout", authCtl.Logout)
+
+	// 客户：查询/新增/编辑 both，删除仅 admin（04-API.md:70-95、06 §7）。
+	both := api.Group("",
+		middleware.JWTAuth(tokenSvc, userSvc, logger),
+		middleware.RequireRole(model.RoleAdmin, model.RoleStaff))
+	both.GET("/customers", customerCtl.List)
+	both.POST("/customers", customerCtl.Create)
+	both.GET("/customers/:id", customerCtl.Get)
+	both.PUT("/customers/:id", customerCtl.Update)
+
+	adminOnly := api.Group("",
+		middleware.JWTAuth(tokenSvc, userSvc, logger),
+		middleware.RequireRole(model.RoleAdmin))
+	adminOnly.DELETE("/customers/:id", customerCtl.Delete)
+
 	// 后续业务路由的权限分组约定（04-API.md:60-68、06 §7）：
-	//   adminOnly := api.Group("", middleware.JWTAuth(...), middleware.RequireRole(model.RoleAdmin))
-	//   both      := api.Group("", middleware.JWTAuth(...), middleware.RequireRole(model.RoleAdmin, model.RoleStaff))
+	//   adminOnly 仅 admin；both 为 admin + staff。
 
 	engine.NoRoute(newSPAHandler(logger))
 	return engine
