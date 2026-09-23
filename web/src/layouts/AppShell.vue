@@ -5,7 +5,7 @@
       class="shell__aside"
     >
       <div class="shell__brand">
-        {{ DEFAULT_SHOP_NAME }}
+        {{ settings.shopName }}
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -24,7 +24,7 @@
 
     <el-container>
       <el-header class="shell__header">
-        <span class="shell__shop">{{ DEFAULT_SHOP_NAME }}</span>
+        <span class="shell__shop">{{ settings.shopName }}</span>
         <div class="shell__account">
           <span class="shell__username">{{ auth.username }}</span>
           <el-tag
@@ -52,18 +52,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { NAV_ITEMS } from '@/router'
 import { useAuthStore } from '@/stores/auth'
-import { DEFAULT_SHOP_NAME } from '@/constants'
+import { useSettingsStore } from '@/stores/settings'
 
 const ROLE_LABELS = { admin: '管理员', staff: '店员' } as const
 
 const auth = useAuthStore()
+const settings = useSettingsStore()
 const route = useRoute()
 const router = useRouter()
+
+// 门店名称来自 settings API（GET /settings，both 可读）；设置页保存后同一 store 即时更新
+onMounted(() => {
+  void settings.ensureLoaded()
+})
 
 const roleLabel = computed(() => (auth.role === null ? '' : ROLE_LABELS[auth.role]))
 
