@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 import type { UserRole } from '@/api'
 import { useAuthStore } from '@/stores/auth'
@@ -42,6 +43,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
  */
 const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
   '/customers': () => import('@/views/customer/CustomerListView.vue'),
+  '/services': () => import('@/views/service/ServiceListView.vue'),
 }
 
 const routes: RouteRecordRaw[] = [
@@ -84,12 +86,14 @@ export const router = createRouter({
 })
 
 /**
- * 路由守卫（todo 12）：
+ * 路由守卫（todo 12 + todo 20）：
  * - 未登录访问受保护路由 → /login（带 redirect 回跳）；
- * - 已登录访问 /login → /（避免重复登录）。
+ * - 已登录访问 /login → /（避免重复登录）；
+ * - 路由声明 meta.roles 时按当前角色放行，不匹配 → 回首页（如 staff 直达 /services）。
+ * 前端守卫只是导航简化，真实权限边界始终是后端 RBAC（07-UI.md:30）。
  * 每次导航（含浏览器后退）都会重新判定，logout 清除 token 后后退同样被拦截。
  */
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore(pinia)
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth === true)
 
@@ -98,6 +102,22 @@ router.beforeEach((to) => {
   }
   if (to.path === '/login' && auth.isAuthenticated) {
     return { path: '/' }
+  }
+
+  const roles = to.meta.roles
+  if (roles !== undefined) {
+    // 刷新页面后 user 尚未拉取（role=null）时先补拉，避免把 admin 误拦
+    if (auth.isAuthenticated && auth.role === null) {
+      await auth.fetchMe()
+    }
+    if (!auth.isAuthenticated) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+    const role = auth.role
+    if (role !== null && !roles.includes(role)) {
+      ElMessage.warning('没有权限访问该页面')
+      return { path: '/' }
+    }
   }
   return true
 })

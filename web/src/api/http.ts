@@ -36,6 +36,12 @@ export const TOKEN_STORAGE_KEY = 'hair-salon-token'
 /** 与 server/internal/service/errors.go 的 CodeUnauthorized 对齐 */
 const CODE_UNAUTHORIZED = 40100
 
+/**
+ * 与 server/internal/service/errors.go 的 CodeValidationFailed 对齐：
+ * HTTP 422 业务校验失败（如删除有订单的服务、分类下仍有服务）在信封里返回该业务码。
+ */
+export const CODE_VALIDATION_FAILED = 42200
+
 /** 登录页路径（todo 12 提供该页面） */
 const LOGIN_PATH = '/login'
 
