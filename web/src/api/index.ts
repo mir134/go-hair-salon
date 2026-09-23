@@ -2,6 +2,7 @@
 // 其他层只从这里 import：import { get, post } from '@/api'
 export {
   ApiError,
+  CODE_SERVICE_UNAVAILABLE,
   CODE_VALIDATION_FAILED,
   TOKEN_STORAGE_KEY,
   del,
@@ -12,6 +13,8 @@ export {
   request,
 } from './http'
 export type { ApiEnvelope, PageData } from './http'
+export { createBackup, listBackups, restoreBackup } from './backup'
+export type { Backup, BackupListData, RestorePayload, RestoreResult } from './backup'
 export { fetchMe, login, logout } from './auth'
 export type { AuthUser, LoginPayload, LoginResult, UserRole } from './auth'
 export {

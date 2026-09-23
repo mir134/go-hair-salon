@@ -72,6 +72,37 @@ func OpenReadOnly(path string) (*sql.DB, error) {
 	return db, nil
 }
 
+// OpenPool 按与 Open 相同的 DSN/PRAGMA/连接数约束打开一个新的 SQLite 连接池。
+//
+// 恢复流程（todo 52）专用：数据库文件被替换后需要一个新的连接池，
+// 再经 ReplaceConnPool 原地挂回已有的 *gorm.DB。调用方负责在失败路径关闭该池。
+func OpenPool(dbPath string) (*sql.DB, error) {
+	if strings.TrimSpace(dbPath) == "" {
+		return nil, errors.New("DB_PATH 不能为空")
+	}
+	pool, err := sql.Open("sqlite", DSN(dbPath))
+	if err != nil {
+		return nil, fmt.Errorf("打开数据库连接池 %s 失败: %w", dbPath, err)
+	}
+	pool.SetMaxOpenConns(1)
+	pool.SetMaxIdleConns(1)
+	pool.SetConnMaxLifetime(0)
+	return pool, nil
+}
+
+// ReplaceConnPool 原地替换 *gorm.DB 的底层连接池（恢复流程专用）。
+//
+// gorm 的 Session/WithContext/getInstance 都会从 db.Config.ConnPool 与
+// db.Statement.ConnPool 派生新会话，因此同时替换这两处后，所有已持有该
+// *gorm.DB 的仓储（router 装配时注入的 14 个仓储）无需重新装配即可使用新池。
+//
+// 调用方必须保证替换期间没有并发的数据库访问：恢复流程由维护模式
+// （业务写请求 503）与 BackupService 互斥锁共同保证。
+func ReplaceConnPool(db *gorm.DB, pool *sql.DB) {
+	db.Config.ConnPool = pool
+	db.Statement.ConnPool = pool
+}
+
 // newGormLogger 构造 GORM 日志器：只输出告警/错误，且 SQL 参数不内联，
 // 避免把手机号等敏感参数写进日志（08-DEPLOYMENT.md:89-92）。
 func newGormLogger() logger.Interface {

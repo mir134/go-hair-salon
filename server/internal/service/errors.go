@@ -15,6 +15,8 @@ const (
 	CodeConflict         = 40900
 	CodeValidationFailed = 42200
 	CodeInternal         = 50000
+	// CodeServiceUnavailable 服务暂不可用（503：维护模式/数据恢复中，拒绝业务写入）。
+	CodeServiceUnavailable = 50300
 )
 
 // BizError 是可预期的业务错误：携带 HTTP 状态码、业务错误码与面向用户的提示。
@@ -68,6 +70,11 @@ func Validation(message string) *BizError {
 // Internal 服务器内部错误（500 / 50000），message 必须为用户友好文案。
 func Internal(message string) *BizError {
 	return NewBizError(http.StatusInternalServerError, CodeInternal, message)
+}
+
+// ServiceUnavailable 服务暂不可用（503 / 50300），如恢复期间拒绝业务写入（08-DEPLOYMENT.md:78）。
+func ServiceUnavailable(message string) *BizError {
+	return NewBizError(http.StatusServiceUnavailable, CodeServiceUnavailable, message)
 }
 
 // ErrCustomerNotFound 是“客户不存在”的标准业务错误（04-API.md:25-33 示例，40001）。

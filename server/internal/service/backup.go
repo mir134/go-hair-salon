@@ -49,6 +49,8 @@ const (
 	BackupTriggerManual BackupTrigger = "manual"
 	// BackupTriggerAutomatic 定时或启动补偿备份（todo 51 定时器）。
 	BackupTriggerAutomatic BackupTrigger = "automatic"
+	// BackupTriggerPreRestore 恢复前的安全备份（todo 52；08-DEPLOYMENT.md:78）。
+	BackupTriggerPreRestore BackupTrigger = "pre-restore"
 )
 
 // label 返回审计描述用的中文标签。
@@ -58,6 +60,8 @@ func (t BackupTrigger) label() string {
 		return "自动备份"
 	case BackupTriggerManual:
 		return "手动备份"
+	case BackupTriggerPreRestore:
+		return "恢复前安全备份"
 	default:
 		return "备份"
 	}
@@ -158,15 +162,22 @@ func orDefaultLogger(logger *slog.Logger) *slog.Logger {
 // 任意一步失败都返回明确错误且不产生半成品（staging 目录在 defer 中整体清理）；
 // 审计日志在快照/打包/清理全部结束之后写入，不在任何业务事务内（避免占住唯一连接）。
 func (s *BackupService) Create(ctx context.Context, trigger BackupTrigger) (*BackupResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.createLocked(ctx, trigger)
+}
+
+// createLocked 与 Create 相同，但假定调用方已持有 s.mu。
+//
+// 恢复流程（todo 52）在持有备份互斥锁的整个期间完成「安全备份 → 替换数据库」，
+// 避免自动/手动备份的 VACUUM INTO 与文件替换交错，因此需要这个无锁版本。
+func (s *BackupService) createLocked(ctx context.Context, trigger BackupTrigger) (*BackupResult, error) {
 	if s.backupDir == "" {
 		return nil, errors.New("备份目录未配置（BACKUP_DIR）")
 	}
 	if s.dbPath == "" {
 		return nil, errors.New("数据库路径未配置（DB_PATH）")
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if err := os.MkdirAll(s.backupDir, 0o755); err != nil {
 		return nil, fmt.Errorf("创建备份目录 %s 失败: %w", s.backupDir, err)

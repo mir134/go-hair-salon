@@ -42,6 +42,13 @@ const CODE_UNAUTHORIZED = 40100
  */
 export const CODE_VALIDATION_FAILED = 42200
 
+/**
+ * 与 server/internal/service/errors.go 的 CodeServiceUnavailable 对齐：
+ * HTTP 503 维护模式（数据恢复进行中）拒绝业务写入时返回该业务码，
+ * 页面可据此展示明确的「系统维护中」提示（plan todo 52）。
+ */
+export const CODE_SERVICE_UNAVAILABLE = 50300
+
 /** 登录页路径（todo 12 提供该页面） */
 const LOGIN_PATH = '/login'
 

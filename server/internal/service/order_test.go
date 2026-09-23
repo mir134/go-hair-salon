@@ -32,6 +32,7 @@ var orderNoPattern = regexp.MustCompile(`^\d{18}$`)
 // orderTestEnv 是消费事务验收测试环境：真实迁移库 + 真实仓储/服务装配。
 type orderTestEnv struct {
 	db        *gorm.DB
+	dbPath    string
 	orders    *service.OrderService
 	customers *repository.CustomerRepository
 }
@@ -39,15 +40,20 @@ type orderTestEnv struct {
 // newOrderTestEnv 装配 todo 21 测试环境（临时库、迁移、settings 播种、完整依赖注入）。
 func newOrderTestEnv(t *testing.T) *orderTestEnv {
 	t.Helper()
-	db, err := repository.Open(filepath.Join(t.TempDir(), "order.db"))
+	dbPath := filepath.Join(t.TempDir(), "order.db")
+	db, err := repository.Open(dbPath)
 	if err != nil {
 		t.Fatalf("repository.Open: %v", err)
 	}
-	sqlDB, err := db.DB()
-	if err != nil {
+	if _, err := db.DB(); err != nil {
 		t.Fatalf("db.DB: %v", err)
 	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
+	// 关闭「退出时当前的」连接池：审计测试（todo 52）会经恢复流程原地替换连接池。
+	t.Cleanup(func() {
+		if current, err := db.DB(); err == nil {
+			_ = current.Close()
+		}
+	})
 	if err := repository.Migrate(db); err != nil {
 		t.Fatalf("repository.Migrate: %v", err)
 	}
@@ -70,7 +76,7 @@ func newOrderTestEnv(t *testing.T) *orderTestEnv {
 		Settings:  repository.NewSettingsRepository(db),
 		Logs:      service.NewOperationLogService(repository.NewOperationLogRepository(db)),
 	})
-	return &orderTestEnv{db: db, orders: orderSvc, customers: customerRepo}
+	return &orderTestEnv{db: db, dbPath: dbPath, orders: orderSvc, customers: customerRepo}
 }
 
 // adminCtx 构造 admin 登录上下文（改价权限 + 审计 operator=1）。

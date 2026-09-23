@@ -23,6 +23,10 @@ type Options struct {
 	// Backups 是备份服务（main 从 config 注入，与 todo 51 自动备份定时器共享同一实例）。
 	// 为 nil 时不注册 /backups 路由（仅测试装配可省略）。
 	Backups *service.BackupService
+	// Maintenance 是维护模式标志（恢复期间业务写请求 503）。nil 时创建内部实例。
+	Maintenance *service.MaintenanceGuard
+	// Restores 是恢复服务；nil 且 Backups 非 nil 时按默认依赖构造。
+	Restores *service.RestoreService
 }
 
 // New 装配 gin 引擎：panic recovery → 请求上下文（ip/ua 审计）→ 请求日志 → 路由与静态兜底。
@@ -41,6 +45,12 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	engine.Use(middleware.RequestContext())
 	engine.Use(middleware.RequestLogger(logger))
 	engine.GET("/health", controller.Health(db, logger))
+
+	// 维护模式标志（todo 52）：恢复期间业务写请求 503；与恢复服务共享同一实例。
+	guard := opts.Maintenance
+	if guard == nil {
+		guard = service.NewMaintenanceGuard()
+	}
 
 	// 依赖装配：controller → service → repository（02-AGENTS.md:15-26）。
 	employeeRepo := repository.NewEmployeeRepository(db)
@@ -109,7 +119,9 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	authed.POST("/logout", authCtl.Logout)
 
 	// 客户：查询/新增/编辑 both，删除仅 admin（04-API.md:70-95、06 §7）。
+	// 维护中间件必须早于 JWT：恢复期间写请求在触碰数据库之前就被 503 拒绝（todo 52）。
 	both := api.Group("",
+		middleware.Maintenance(guard),
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
 		middleware.RequireRole(model.RoleAdmin, model.RoleStaff))
 	both.GET("/customers", customerCtl.List)
@@ -152,6 +164,7 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.GET("/dashboard/employee-performance", dashboardCtl.EmployeePerformance)
 
 	adminOnly := api.Group("",
+		middleware.Maintenance(guard),
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
 		middleware.RequireRole(model.RoleAdmin))
 	adminOnly.DELETE("/customers/:id", customerCtl.Delete)
@@ -181,9 +194,23 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	adminOnly.GET("/operation-logs", logCtl.List)
 	// 备份列表/手动备份仅 admin（04-API.md:245-256、08-DEPLOYMENT.md:70-76）。
 	if opts.Backups != nil {
-		backupCtl := controller.NewBackupController(opts.Backups)
+		restores := opts.Restores
+		if restores == nil {
+			restores = service.NewRestoreService(service.RestoreServiceDeps{
+				Backups: opts.Backups,
+				Guard:   guard,
+				Logger:  logger,
+			})
+		}
+		backupCtl := controller.NewBackupController(opts.Backups, restores)
 		adminOnly.GET("/backups", backupCtl.List)
 		adminOnly.POST("/backups", backupCtl.Create)
+		// 恢复端点单独分组：不受维护中间件拦截（恢复本身需要在维护模式下执行），
+		// 权限仍为仅 admin（04-API.md:252、05-TASKS.md:165-169）。
+		restoreOnly := api.Group("",
+			middleware.JWTAuth(tokenSvc, userSvc, logger),
+			middleware.RequireRole(model.RoleAdmin))
+		restoreOnly.POST("/backups/:id/restore", backupCtl.Restore)
 	}
 	// 员工 CRUD 仅 admin；DELETE = 停用（status=0，行保留，D7 决议）（04-API.md:194-204、06 §7）。
 	adminOnly.GET("/employees", employeeCtl.List)

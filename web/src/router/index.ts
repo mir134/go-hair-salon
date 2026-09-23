@@ -35,6 +35,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/employees', title: '员工', roles: ['admin'] },
   { path: '/users', title: '用户', roles: ['admin'] },
   { path: '/logs', title: '日志', roles: ['admin'] },
+  // 备份与恢复（plan todo 52）：独立 admin 导航项，位于「日志」与「系统」之间；
+  // 「系统」(/settings) 保持系统设置职责（其占位已由 todo 42 落地）。
+  { path: '/backups', title: '备份', roles: ['admin'] },
   { path: '/settings', title: '系统', roles: ['admin'] },
 ]
 
@@ -51,6 +54,7 @@ const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
   '/employees': () => import('@/views/employee/EmployeeListView.vue'),
   '/users': () => import('@/views/user/UserListView.vue'),
   '/logs': () => import('@/views/log/OperationLogListView.vue'),
+  '/backups': () => import('@/views/backup/BackupListView.vue'),
   '/settings': () => import('@/views/system/SystemSettingsView.vue'),
 }
 

@@ -65,13 +65,19 @@ func run() error {
 	}
 	// 数据库日志统一走 slog；SQL 参数不落日志（logging.GormLogger）。
 	db.Logger = logging.GormLogger(logger)
-	sqlDB, err := db.DB()
-	if err != nil {
+	if _, err := db.DB(); err != nil {
 		logger.Error("数据库错误", "phase", "connection_pool", "err", err)
 		return err
 	}
+	// 关闭「退出时当前的」连接池：恢复流程（todo 52）会原地替换连接池，
+	// 若在此处捕获启动时的池，则新池在退出时不会被关闭。
 	defer func() {
-		if err := sqlDB.Close(); err != nil {
+		current, err := db.DB()
+		if err != nil {
+			logger.Error("获取数据库连接池失败", "err", err)
+			return
+		}
+		if err := current.Close(); err != nil {
 			logger.Error("数据库关闭失败", "err", err)
 		}
 	}()
@@ -141,11 +147,16 @@ func run() error {
 		}
 	}()
 
+	// 维护模式标志（todo 52）：数据恢复期间业务写请求一律 503，读请求放行；
+	// 与恢复服务、路由中间件共享同一实例。
+	maintenance := service.NewMaintenanceGuard()
+
 	server := &http.Server{
 		Addr: fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort),
 		Handler: router.New(db, logger, router.Options{
-			JWTSecret: cfg.JWTSecret,
-			Backups:   backupService,
+			JWTSecret:   cfg.JWTSecret,
+			Backups:     backupService,
+			Maintenance: maintenance,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

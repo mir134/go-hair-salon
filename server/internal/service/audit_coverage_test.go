@@ -8,12 +8,14 @@ package service_test
 //     operation_logs 中存在对应 action 行，且 operator_id 与执行者完全一致
 //     （login_failed 无登录上下文 → operator_id 为 NULL）：
 //     认证 / 客户 / 标签 / 服务分类 / 服务项目 / 订单（创建、结账、取消、明细增改删、退款）/
-//     充值 / 余额调整 / 员工 / 用户管理 / 系统设置 —— 共 10+ 业务域、25+ 动作。
+//     充值 / 余额调整 / 员工 / 用户管理 / 系统设置 / 备份 / 恢复 —— 共 12 业务域、27+ 动作。
 //  2. 敏感字段擦除（08-DEPLOYMENT.md:90-92、06-BUSINESS-RULES.md:43,64）：
 //     任何日志 content 不得出现明文密码、JWT（含 JWT 形状串）或 bcrypt 哈希（$2a$）。
 //
-// 待办域（对应 wave 落地后必须在此追加动作，否则审计红线出现盲区）：
-//   - 备份/恢复（todo 50-52，action=backup/restore）尚未提供 API。
+// 盲区登记（todo 52 已补齐）：备份/恢复（action=backup/restore）曾无 API，
+// 现经真实 HTTP 驱动断言；注意恢复会用备份时点的数据库整体替换当前库，
+// 因此「恢复时点之前」的审计行会随旧库被替换（恢复前状态由恢复前安全备份保留），
+// 恢复后的 backup/restore 审计行落在恢复后的库中并被本矩阵断言。
 //
 // 断言一律以 DB 行（operation_logs）为准，不以 HTTP 状态码/"日志行输出"为证据
 // （misleading_success_output 防线）。
@@ -26,6 +28,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -64,7 +68,8 @@ type auditEnv struct {
 	staffToken string
 }
 
-// newAuditEnv 装配真实路由环境：临时 SQLite + 迁移 + settings 播种 + admin/staff 用户。
+// newAuditEnv 装配真实路由环境：临时 SQLite + 迁移 + settings 播种 + admin/staff 用户
+// + 备份/恢复服务（todo 50-52 的审计动作需要真实 API）。
 func newAuditEnv(t *testing.T) *auditEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -86,8 +91,34 @@ func newAuditEnv(t *testing.T) *auditEnv {
 		t.Fatalf("CreateUser(staff): %v", err)
 	}
 
+	// 备份/恢复服务（真实临时目录 + 真实 config.yaml；备份内容必须可打包）。
+	root := t.TempDir()
+	uploadDir := filepath.Join(root, "uploads")
+	backupDir := filepath.Join(root, "backups")
+	for _, dir := range []string{uploadDir, backupDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll(%s): %v", dir, err)
+		}
+	}
+	configPath := filepath.Join(root, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("DB_PATH: audit.db\n"), 0o644); err != nil {
+		t.Fatalf("写 config.yaml: %v", err)
+	}
+	dbPath := base.dbPath
+	discard := slog.New(slog.NewTextHandler(io.Discard, nil))
+	backups := service.NewBackupService(service.BackupServiceDeps{
+		DB:         base.db,
+		DBPath:     dbPath,
+		UploadDir:  uploadDir,
+		BackupDir:  backupDir,
+		ConfigPath: configPath,
+		Logs:       service.NewOperationLogService(repository.NewOperationLogRepository(base.db)),
+		Logger:     discard,
+	})
+	guard := service.NewMaintenanceGuard()
+
 	engine := router.New(base.db, slog.New(slog.NewTextHandler(io.Discard, nil)),
-		router.Options{JWTSecret: auditJWTSecret, TokenTTL: time.Hour})
+		router.Options{JWTSecret: auditJWTSecret, TokenTTL: time.Hour, Backups: backups, Maintenance: guard})
 	env := &auditEnv{orderTestEnv: base, engine: engine, admin: admin, staff: staff}
 	env.adminToken = env.authLogin(t, auditAdminUser, auditAdminPassword)
 	env.staffToken = env.authLogin(t, auditStaffUser, auditStaffPassword)
@@ -417,6 +448,26 @@ func TestAuditCoverage(t *testing.T) {
 	env.expect(t, http.StatusOK, env.call(http.MethodPut, "/api/v1/settings/shop_name",
 		`{"value":"审计测试门店"}`, env.adminToken), "setting_update")
 
+	// ============ 备份 / 恢复域（todo 50-52，真实 HTTP 驱动） ============
+
+	backupCreated := env.call(http.MethodPost, "/api/v1/backups", "", env.adminToken)
+	env.expect(t, http.StatusCreated, backupCreated, "backup")
+	var backupInfo struct {
+		Name string `json:"name"`
+	}
+	decodeAuditData(t, backupCreated, &backupInfo)
+	if backupInfo.Name == "" {
+		t.Fatal("备份创建响应缺少 name")
+	}
+	// 恢复会用备份时点的数据库整体替换当前库：备份时点之后的审计行随旧库被替换
+	//（恢复前状态由「恢复前安全备份」保留），因此恢复完成后再补一次手动备份，
+	// 让 action=backup 的审计行落在恢复后的库中（backup 动作持续可审计）。
+	restored := env.call(http.MethodPost,
+		fmt.Sprintf("/api/v1/backups/%s/restore", backupInfo.Name), `{"confirm":true}`, env.adminToken)
+	env.expect(t, http.StatusOK, restored, "restore")
+	env.expect(t, http.StatusCreated,
+		env.call(http.MethodPost, "/api/v1/backups", "", env.adminToken), "backup(恢复后)")
+
 	// ============ 覆盖矩阵断言（DB 真值） ============
 
 	cases := []auditCase{
@@ -462,6 +513,9 @@ func TestAuditCoverage(t *testing.T) {
 		{action: "user_enable", allowed: []*int64{&adminID}, what: "用户管理"},
 		{action: "user_password_reset", allowed: []*int64{&adminID}, what: "用户管理"},
 		{action: "setting_update", allowed: []*int64{&adminID}, what: "系统设置"},
+		// 备份/恢复：仅 admin（todo 50-52）；恢复后的 backup 审计行来自「恢复后补备」。
+		{action: "backup", allowed: []*int64{&adminID}, what: "备份"},
+		{action: "restore", allowed: []*int64{&adminID}, what: "恢复"},
 	}
 
 	coveredDomains := map[string]int{}
