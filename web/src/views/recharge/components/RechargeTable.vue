@@ -1,5 +1,16 @@
 <template>
+  <!-- 手机端（<768px）：卡片列表替代表格（02-AGENTS.md:92、07-UI.md:119） -->
+  <RechargeCardList
+    v-if="isMobile"
+    :items="items"
+    :loading="loading"
+    :show-customer="showCustomer"
+    :is-admin="isAdmin"
+    :refunding-id="refundingId"
+    @refund="(id, refundCents, customerName) => emit('refund', id, refundCents, customerName)"
+  />
   <el-table
+    v-else
     v-loading="loading"
     :data="items"
     row-key="id"
@@ -98,12 +109,15 @@
 
 <script setup lang="ts">
 import type { Recharge } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import {
   PAYMENT_METHOD_LABELS,
   RECHARGE_STATUS_LABELS,
   RECHARGE_STATUS_TAG_TYPES,
 } from '@/constants'
 import { formatCents, formatDateTime } from '@/utils/format'
+
+import RechargeCardList from './RechargeCardList.vue'
 
 // 充值记录表格：充值列表页（含客户列）与客户详情「充值记录」tab（不含客户列）共用。
 // 金额列全部取服务端整数分：本金 / 赠送 / 实付分列展示，赠送不并入实付（07-UI.md:74）。
@@ -126,4 +140,7 @@ const emit = defineEmits<{
   /** 请求冲正某条充值记录（id、应扣回余额=本金+赠送、客户名；父级二次确认后调用 API） */
   refund: [id: number, refundCents: number, customerName: string]
 }>()
+
+/** 手机端渲染 RechargeCardList，PC 端保持表格（plan todo 53） */
+const isMobile = useIsMobile()
 </script>

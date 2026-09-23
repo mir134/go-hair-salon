@@ -1,5 +1,8 @@
 <template>
   <section class="dashboard">
+    <!-- 手机首页：搜索客户 / 最近客户 / 快速消费 / 快速充值（07-UI.md:42、plan todo 53） -->
+    <MobileQuickEntries v-if="isMobile" />
+
     <div class="dashboard__head">
       <span class="dashboard__title">Dashboard</span>
       <div class="dashboard__toolbar">
@@ -88,10 +91,12 @@ import {
   todayRange,
 } from '@/utils/dashboard'
 import type { DateRange } from '@/utils/dashboard'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 import DashboardKpiCards from './components/DashboardKpiCards.vue'
 import DashboardRangeSection from './components/DashboardRangeSection.vue'
 import EmployeePerformanceTable from './components/EmployeePerformanceTable.vue'
+import MobileQuickEntries from './components/MobileQuickEntries.vue'
 import RecentOrdersCard from './components/RecentOrdersCard.vue'
 import RecentRechargesCard from './components/RecentRechargesCard.vue'
 
@@ -101,6 +106,8 @@ import RecentRechargesCard from './components/RecentRechargesCard.vue'
 // - 待结账单数来自 summary 的实时 pending 总数，切换范围不重新拉取、数值不受范围影响；
 // - 不用图表库：区间序列以合计卡片 + 每日明细表格呈现。
 const router = useRouter()
+/** 手机布局（<768px）：首页顶部插入 4 个快捷入口；PC 布局保持不变 */
+const isMobile = useIsMobile()
 
 const range = ref<DateRange | null>(null)
 const summary = ref<DashboardSummary | null>(null)

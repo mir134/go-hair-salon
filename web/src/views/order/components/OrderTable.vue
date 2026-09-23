@@ -1,5 +1,17 @@
 <template>
+  <!-- 手机端（<768px）：卡片列表替代表格（02-AGENTS.md:92、07-UI.md:119） -->
+  <OrderCardList
+    v-if="isMobile"
+    :items="items"
+    :loading="loading"
+    :is-admin="isAdmin"
+    @detail="(id) => emit('detail', id)"
+    @checkout="(id) => emit('checkout', id)"
+    @edit-items="(id) => emit('edit-items', id)"
+    @cancel="(id, orderNo) => emit('cancel', id, orderNo)"
+  />
   <el-table
+    v-else
     v-loading="loading"
     :data="items"
     row-key="id"
@@ -130,16 +142,22 @@
 
 <script setup lang="ts">
 import type { Order } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TAG_TYPES, PAYMENT_METHOD_LABELS } from '@/constants'
 import { formatCents, formatDateTime } from '@/utils/format'
 
+import OrderCardList from './OrderCardList.vue'
+
 // 消费记录表格（07-UI.md:40、57）：订单号/客户/金额/支付方式/状态标签/时间。
 // 行操作：待结账行提供 结账/编辑明细（取消仅 admin）；其余状态只读进详情。
+// 手机端由 OrderCardList 以卡片呈现（plan todo 53）。
 defineProps<{
   items: Order[]
   loading: boolean
   isAdmin: boolean
 }>()
+
+const isMobile = useIsMobile()
 
 const emit = defineEmits<{
   detail: [id: number]
