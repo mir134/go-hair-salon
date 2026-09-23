@@ -38,6 +38,8 @@ type authTestEnv struct {
 	users  *service.UserService
 	logBuf *bytes.Buffer
 	admin  *model.User
+	// uploadDir 是上传目录（router.Options.UploadDir）；目录由 UploadService 按需创建。
+	uploadDir string
 }
 
 func newAuthEnv(t *testing.T) *authTestEnv {
@@ -57,12 +59,17 @@ func newAuthEnv(t *testing.T) *authTestEnv {
 	}
 
 	logBuf := &bytes.Buffer{}
-	engine := router.New(db, slog.New(slog.NewTextHandler(logBuf, nil)), router.Options{JWTSecret: authTestSecret})
+	uploadDir := filepath.Join(t.TempDir(), "uploads")
+	engine := router.New(db, slog.New(slog.NewTextHandler(logBuf, nil)), router.Options{
+		JWTSecret: authTestSecret,
+		UploadDir: uploadDir,
+	})
 	env := &authTestEnv{
-		engine: engine,
-		db:     db,
-		users:  service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db)),
-		logBuf: logBuf,
+		engine:    engine,
+		db:        db,
+		users:     service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db)),
+		logBuf:    logBuf,
+		uploadDir: uploadDir,
 	}
 	ctx := context.Background()
 	if created, err := env.users.SeedAdmin(ctx, "Admin-Pwd-1"); err != nil || !created {

@@ -33,6 +33,8 @@ export interface CustomerPayload {
   phone: string
   gender: string
   birthday: string | null
+  /** 头像相对路径：由 POST /uploads 返回（/uploads/<hash>.<ext>）；空串表示无头像 */
+  avatar: string
   wechat: string
   source: string
   remark: string

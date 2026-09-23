@@ -132,6 +132,7 @@ func (e *e2eEnv) engine() *gin.Engine {
 		Backups:     backups,
 		Maintenance: guard,
 		Restores:    restores,
+		UploadDir:   e.uploadDir,
 	})
 }
 

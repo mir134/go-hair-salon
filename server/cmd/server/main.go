@@ -157,6 +157,7 @@ func run() error {
 			JWTSecret:   cfg.JWTSecret,
 			Backups:     backupService,
 			Maintenance: maintenance,
+			UploadDir:   cfg.UploadDir,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

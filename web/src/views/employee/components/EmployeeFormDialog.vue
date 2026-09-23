@@ -43,6 +43,12 @@
         />
       </el-form-item>
       <el-form-item
+        label="头像"
+        prop="avatar"
+      >
+        <AvatarUpload v-model="form.avatar" />
+      </el-form-item>
+      <el-form-item
         label="职位"
         prop="position"
       >
@@ -99,10 +105,11 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
 import { ApiError, EMPLOYEE_STATUS_ENABLED, createEmployee, updateEmployee } from '@/api'
 import type { Employee, EmployeePayload } from '@/api'
+import AvatarUpload from '@/components/AvatarUpload.vue'
 
 // 员工新增/编辑弹窗：employee 为 null = 新增（默认启用）。
 // 停用/启用由列表页的状态操作负责（二次确认），本弹窗只维护档案字段；
-// avatar 无上传入口，编辑时原样回传，避免保存时被清空。
+// 头像经 POST /uploads 上传后存相对路径（avatar 字段），保存时原样回传。
 const props = defineProps<{
   modelValue: boolean
   employee: Employee | null
@@ -116,6 +123,7 @@ const emit = defineEmits<{
 interface EmployeeForm {
   name: string
   phone: string
+  avatar: string
   position: string
   joinedAt: string | null
   remark: string
@@ -146,7 +154,7 @@ watch(visible, (open) => {
 })
 
 function emptyForm(): EmployeeForm {
-  return { name: '', phone: '', position: '', joinedAt: null, remark: '' }
+  return { name: '', phone: '', avatar: '', position: '', joinedAt: null, remark: '' }
 }
 
 /** 打开弹窗时回填：编辑取原值，新增用空表单 */
@@ -159,6 +167,7 @@ function prepare(): void {
       : {
           name: employee.name,
           phone: employee.phone,
+          avatar: employee.avatar,
           position: employee.position,
           joinedAt: employee.joined_at,
           remark: employee.remark,
@@ -183,7 +192,7 @@ async function handleSubmit(): Promise<void> {
   const payload: EmployeePayload = {
     name: form.value.name.trim(),
     phone: form.value.phone.trim(),
-    avatar: employee?.avatar ?? '',
+    avatar: form.value.avatar.trim(),
     position: form.value.position.trim(),
     status: employee?.status ?? EMPLOYEE_STATUS_ENABLED,
     joined_at: form.value.joinedAt,

@@ -12,6 +12,8 @@ export interface CustomerProfileForm {
   phone: string
   gender: string
   birthday: string | null
+  /** 头像相对路径（POST /uploads 返回值）；空串表示无头像 */
+  avatar: string
   wechat: string
   source: string
   remark: string
@@ -25,6 +27,7 @@ export function emptyCustomerProfileForm(): CustomerProfileForm {
     phone: '',
     gender: '',
     birthday: null,
+    avatar: '',
     wechat: '',
     source: '',
     remark: '',
@@ -39,6 +42,7 @@ export function customerProfileFormFromDetail(detail: Customer): CustomerProfile
     phone: detail.phone,
     gender: detail.gender,
     birthday: detail.birthday,
+    avatar: detail.avatar,
     wechat: detail.wechat,
     source: detail.source,
     remark: detail.remark,
@@ -58,6 +62,7 @@ export function toCustomerPayload(form: CustomerProfileForm): CustomerPayload {
     phone: form.phone.trim(),
     gender: form.gender,
     birthday: form.birthday,
+    avatar: form.avatar.trim(),
     wechat: form.wechat.trim(),
     source: form.source.trim(),
     remark: form.remark,

@@ -80,6 +80,7 @@ var protectedPolicies = map[string]string{
 	"GET /api/v1/dashboard/revenue":                  policyBoth,
 	"GET /api/v1/dashboard/customers":                policyBoth,
 	"GET /api/v1/dashboard/employee-performance":     policyBoth,
+	"POST /api/v1/uploads":                           policyBoth,
 	// --- admin only：06 §7 staff 禁区 ---
 	"DELETE /api/v1/customers/:id":                   policyAdmin,
 	"POST /api/v1/tags":                              policyAdmin,
@@ -176,6 +177,7 @@ func newPermissionEnv(t *testing.T) *permissionEnv {
 	engine := router.New(db, discard, router.Options{
 		JWTSecret: permissionMatrixJWTSecret,
 		Backups:   backups,
+		UploadDir: filepath.Join(dataDir, "uploads"),
 	})
 
 	users := service.NewUserService(repository.NewUserRepository(db), repository.NewEmployeeRepository(db))

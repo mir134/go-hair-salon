@@ -27,6 +27,9 @@ type Options struct {
 	Maintenance *service.MaintenanceGuard
 	// Restores 是恢复服务；nil 且 Backups 非 nil 时按默认依赖构造。
 	Restores *service.RestoreService
+	// UploadDir 是上传文件目录（config.UploadDir）。空串时不注册上传接口与 /uploads 静态托管
+	// （仅测试装配可省略）。
+	UploadDir string
 }
 
 // New 装配 gin 引擎：panic recovery → 请求上下文（ip/ua 审计）→ 请求日志 → 路由与静态兜底。
@@ -34,7 +37,9 @@ type Options struct {
 // 已注册路由：
 //   - GET /health（免认证）；
 //   - POST /api/v1/auth/login（免认证）；
-//   - GET /api/v1/auth/me、POST /api/v1/auth/logout（JWT 认证）。
+//   - GET /api/v1/auth/me、POST /api/v1/auth/logout（JWT 认证）；
+//   - POST /api/v1/uploads（JWT 认证 + both，UploadDir 非空时注册）；
+//   - GET/HEAD /uploads/*（上传文件公开只读静态托管，UploadDir 非空时注册）。
 //
 // 未命中路由交给 NoRoute 兜底（static.go）：
 //   - /api 未命中 → 统一 JSON 404 信封（不得回退 HTML）；
@@ -162,6 +167,16 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.GET("/dashboard/revenue", dashboardCtl.Revenue)
 	both.GET("/dashboard/customers", dashboardCtl.Customers)
 	both.GET("/dashboard/employee-performance", dashboardCtl.EmployeePerformance)
+
+	// 头像上传（D8 决议：POST /uploads；02-AGENTS.md:82-83、08-DEPLOYMENT.md:74）：
+	// 写入需登录（both：头像属于资料编辑，与 POST/PUT /customers 同口径），
+	// 校验/哈希重命名在 service 层；静态读取公开只读（<img src> 无法携带 Authorization 头）。
+	if opts.UploadDir != "" {
+		uploadCtl := controller.NewUploadController(service.NewUploadService(opts.UploadDir), logSvc)
+		both.POST("/uploads", uploadCtl.Create)
+		engine.GET(uploadsRoutePath, newUploadsHandler(opts.UploadDir))
+		engine.HEAD(uploadsRoutePath, newUploadsHandler(opts.UploadDir))
+	}
 
 	adminOnly := api.Group("",
 		middleware.Maintenance(guard),

@@ -78,6 +78,8 @@ export type {
 } from './recharge'
 export { listOperationLogs } from './log'
 export type { OperationLog, OperationLogListQuery } from './log'
+export { UPLOAD_ACCEPT, UPLOAD_MAX_SIZE_BYTES, uploadImage } from './upload'
+export type { UploadResult } from './upload'
 export {
   createService,
   createServiceCategory,

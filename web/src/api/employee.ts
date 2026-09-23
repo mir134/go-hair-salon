@@ -10,7 +10,8 @@ export const EMPLOYEE_STATUS_DISABLED = 0
 
 /**
  * 员工 DTO，对齐 server/internal/controller/employee.go 的 EmployeeView
- * （03-DATABASE.md:31-42）：joined_at 为 RFC3339 或 null；avatar 无上传入口，原样透传。
+ * （03-DATABASE.md:31-42）：joined_at 为 RFC3339 或 null；
+ * avatar 为 POST /uploads 返回的相对路径（/uploads/<hash>.<ext>），空串表示无头像。
  */
 export interface Employee {
   id: number

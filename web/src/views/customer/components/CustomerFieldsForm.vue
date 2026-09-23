@@ -50,6 +50,12 @@
     />
   </el-form-item>
   <el-form-item
+    label="头像"
+    prop="avatar"
+  >
+    <AvatarUpload v-model="form.avatar" />
+  </el-form-item>
+  <el-form-item
     label="微信号"
     prop="wechat"
   >
@@ -106,6 +112,8 @@
 import type { Tag } from '@/api'
 import { GENDER_LABELS } from '@/constants'
 import type { CustomerProfileForm } from '@/utils/customerProfile'
+
+import AvatarUpload from '@/components/AvatarUpload.vue'
 
 // 客户表单字段：校验上下文由父级 el-form 提供（provide/inject 跨组件生效）。
 const form = defineModel<CustomerProfileForm>({ required: true })
