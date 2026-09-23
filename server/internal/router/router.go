@@ -67,6 +67,14 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 		Logs:      logSvc,
 	})
 	orderCtl := controller.NewOrderController(orderSvc)
+	rechargeSvc := service.NewRechargeService(service.RechargeServiceDeps{
+		Tx:        repository.NewTransactor(db),
+		Recharges: repository.NewRechargeRepository(db),
+		Customers: customerRepo,
+		Ledger:    repository.NewLedgerRepository(db),
+		Logs:      logSvc,
+	})
+	rechargeCtl := controller.NewRechargeController(rechargeSvc)
 	detailSvc := service.NewCustomerDetailService(customerRepo,
 		orderRepo, repository.NewLedgerRepository(db))
 	detailCtl := controller.NewCustomerDetailController(detailSvc)
@@ -112,6 +120,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.DELETE("/orders/:id/items/:item_id", orderCtl.RemoveItem)
 	// 挂单结账：both（仅 pending 可结账，重复结账 409）（04-API.md:150-151）。
 	both.POST("/orders/:id/pay", orderCtl.Pay)
+	// 充值：创建/查询 both（04-API.md:159-165）。
+	both.POST("/recharges", rechargeCtl.Create)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),

@@ -43,6 +43,26 @@ func (r *CustomerRepository) BalanceTx(ctx context.Context, tx Tx, customerID in
 	return customer.BalanceCents, nil
 }
 
+// ApplyBalanceDeltaTx 在事务内原子增减余额（balance_cents = balance_cents + delta）：
+//
+//	delta > 0：直接累加（充值：本金 + 赠送）；
+//	delta < 0：附加条件 balance_cents >= |delta|（原子防负余额，RowsAffected=0 → 未生效）。
+//
+// 返回 RowsAffected > 0（false = 客户不存在/已软删除，或负向调整会致负）。
+// 充值入账与余额调整共用本原语；禁止「先查余额 → 应用层判断 → 再单独 UPDATE」
+// （04-API.md:288-298 并发竞态）。
+func (r *CustomerRepository) ApplyBalanceDeltaTx(ctx context.Context, tx Tx, customerID, deltaCents int64) (bool, error) {
+	query := tx.WithContext(ctx).Model(&model.Customer{}).Where("id = ?", customerID)
+	if deltaCents < 0 {
+		query = query.Where("balance_cents >= ?", -deltaCents)
+	}
+	res := query.UpdateColumn("balance_cents", gorm.Expr("balance_cents + ?", deltaCents))
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}
+
 // AddPointsTx 在事务内原子累加积分（points = points + ?）。
 func (r *CustomerRepository) AddPointsTx(ctx context.Context, tx Tx, customerID, points int64) error {
 	return tx.WithContext(ctx).Model(&model.Customer{}).
