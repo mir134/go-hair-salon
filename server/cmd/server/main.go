@@ -112,6 +112,35 @@ func run() error {
 		Logger:     logger,
 	})
 
+	// 每日自动备份定时器（todo 51）：BACKUP_TIME（默认 23:00）到点备份，
+	// 启动时最近备份缺失或超过 24h 立即补备；失败只记日志，不中断服务。
+	// 文档冲突已决议：06:33「无定时任务」仅约束挂单（挂单仍不过期），备份按 08:72 实现。
+	scheduler, err := service.NewAutoBackupScheduler(service.AutoBackupSchedulerDeps{
+		Backups:    backupService,
+		BackupTime: cfg.BackupTime,
+		Logger:     logger,
+	})
+	if err != nil {
+		logger.Error("自动备份定时器配置无效", "err", err)
+		return err
+	}
+	schedulerCtx, stopScheduler := context.WithCancel(context.Background())
+	schedulerDone := make(chan struct{})
+	go func() {
+		defer close(schedulerDone)
+		scheduler.Run(schedulerCtx)
+	}()
+	logger.Info("自动备份定时器已启动", "backup_time", cfg.BackupTime)
+	// 退出时先停定时器（等待在途备份结束），再关闭数据库连接（defer 为后进先出）。
+	defer func() {
+		stopScheduler()
+		select {
+		case <-schedulerDone:
+		case <-time.After(shutdownTimeout):
+			logger.Error("自动备份定时器停止超时")
+		}
+	}()
+
 	server := &http.Server{
 		Addr: fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort),
 		Handler: router.New(db, logger, router.Options{

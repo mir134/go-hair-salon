@@ -125,14 +125,6 @@ type BackupService struct {
 
 // NewBackupService 构造备份服务。
 func NewBackupService(deps BackupServiceDeps) *BackupService {
-	now := deps.Now
-	if now == nil {
-		now = time.Now
-	}
-	logger := deps.Logger
-	if logger == nil {
-		logger = slog.Default()
-	}
 	return &BackupService{
 		db:         deps.DB,
 		dbPath:     deps.DBPath,
@@ -140,9 +132,25 @@ func NewBackupService(deps BackupServiceDeps) *BackupService {
 		backupDir:  deps.BackupDir,
 		configPath: deps.ConfigPath,
 		logs:       deps.Logs,
-		now:        now,
-		logger:     logger,
+		now:        orDefaultNow(deps.Now),
+		logger:     orDefaultLogger(deps.Logger),
 	}
+}
+
+// orDefaultNow 返回注入的时钟；未注入时使用 time.Now（todo 51 假时钟测试共用）。
+func orDefaultNow(now func() time.Time) func() time.Time {
+	if now != nil {
+		return now
+	}
+	return time.Now
+}
+
+// orDefaultLogger 返回注入的日志器；未注入时使用默认 logger。
+func orDefaultLogger(logger *slog.Logger) *slog.Logger {
+	if logger != nil {
+		return logger
+	}
+	return slog.Default()
 }
 
 // Create 生成一份备份并执行保留策略；成功后写 operation_logs(action=backup)。
