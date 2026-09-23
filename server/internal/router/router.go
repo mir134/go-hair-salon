@@ -92,6 +92,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	settingsSvc := service.NewSettingsService(repository.NewSettingsRepository(db))
 	settingsCtl := controller.NewSettingsController(settingsSvc, logSvc)
 	logCtl := controller.NewOperationLogController(logSvc)
+	dashboardSvc := service.NewDashboardService(repository.NewDashboardRepository(db))
+	dashboardCtl := controller.NewDashboardController(dashboardSvc)
 
 	api := engine.Group("/api/v1")
 	auth := api.Group("/auth")
@@ -139,6 +141,11 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.GET("/recharges", rechargeCtl.List)
 	// 系统设置：查询 both（仅公开键 shop_name/points_per_yuan，04-API.md:206-215）。
 	both.GET("/settings", settingsCtl.List)
+	// Dashboard 统计：both（04-API.md:217-236、06 §8；日界=服务器本地时区；
+	// 待结账单数为实时数据，不受日期范围影响，07-UI.md:82）。
+	both.GET("/dashboard/summary", dashboardCtl.Summary)
+	both.GET("/dashboard/revenue", dashboardCtl.Revenue)
+	both.GET("/dashboard/customers", dashboardCtl.Customers)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),
