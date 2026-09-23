@@ -102,6 +102,7 @@ export function buildOrderItemPayloads(items: readonly ConsumeItem[]): OrderItem
 /** 快速消费表单内容签名：变化即视为新的提交，作废旧幂等键（04-API.md:283-286） */
 export function consumeFormSignature(input: {
   customerId: number | null
+  employeeId: number | null
   status: OrderSubmitStatus
   paymentMethod: OrderPaymentMethod
   reason: string
@@ -109,6 +110,7 @@ export function consumeFormSignature(input: {
 }): string {
   return JSON.stringify({
     customer_id: input.customerId,
+    employee_id: input.employeeId,
     status: input.status,
     // 挂单不收款：支付方式不参与签名（06-BUSINESS-RULES.md:30）
     payment_method: input.status === 'completed' ? input.paymentMethod : null,

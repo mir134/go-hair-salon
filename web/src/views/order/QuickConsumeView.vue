@@ -39,7 +39,13 @@
         :is-admin="isAdmin"
         :loading="loadingServices"
       />
-      <OrderEmployeeCard />
+      <OrderEmployeeCard
+        v-model="employeeId"
+        :employees="employees"
+        :loading="loadingEmployees"
+        :load-error="employeesError"
+        @retry="loadEmployees"
+      />
       <!-- 挂单不收款：隐藏支付方式（07-UI.md:52-55、06-BUSINESS-RULES.md:30） -->
       <OrderPaymentCard
         v-if="mode === 'completed'"
@@ -52,7 +58,7 @@
         v-model:mode="mode"
         :items="items"
         :is-admin="isAdmin"
-        :employee-label="EMPLOYEE_UNASSIGNED"
+        :employee-label="employeeLabel"
         :payment-label="paymentLabel"
         :error-message="errorMessage"
         :loading="submitting"
@@ -67,7 +73,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import type { Customer, OrderCreatePayload, OrderPaymentMethod, OrderSubmitStatus } from '@/api'
+import type { Customer, Employee, OrderCreatePayload, OrderPaymentMethod, OrderSubmitStatus } from '@/api'
+import { EMPLOYEE_STATUS_ENABLED, listEmployees } from '@/api'
 import { PAYMENT_METHOD_LABELS } from '@/constants'
 import { useAttemptRequestId } from '@/composables/useAttemptRequestId'
 import { useConsumeCatalog } from '@/composables/useConsumeCatalog'
@@ -107,6 +114,13 @@ const paymentMethod = ref<OrderPaymentMethod>('cash')
 const mode = ref<OrderSubmitStatus>('completed')
 const reason = ref('')
 
+/** 选中的员工 id；null = 不指定（员工可选，07-UI.md:50） */
+const employeeId = ref<number | null>(null)
+/** 员工选择池：仅启用中的员工（plan todo 40；停用员工不得被新订单选择） */
+const employees = ref<Employee[]>([])
+const loadingEmployees = ref(false)
+const employeesError = ref(false)
+
 const { services, loadingServices, loadServices, presetCustomer } = useConsumeCatalog()
 const { submitting, errorMessage, result, balanceAfter, submit, reset } = useConsumeSubmit()
 
@@ -118,10 +132,15 @@ const paymentLabel = computed(() =>
     : (PAYMENT_METHOD_LABELS[paymentMethod.value] ?? paymentMethod.value),
 )
 const customerName = computed(() => customer.value?.name ?? '')
+const employeeLabel = computed(() => {
+  const selected = employees.value.find((employee) => employee.id === employeeId.value)
+  return selected === undefined ? EMPLOYEE_UNASSIGNED : selected.name
+})
 
 const requestId = useAttemptRequestId(() =>
   consumeFormSignature({
     customerId: customer.value?.id ?? null,
+    employeeId: employeeId.value,
     status: mode.value,
     paymentMethod: paymentMethod.value,
     reason: reason.value,
@@ -131,8 +150,23 @@ const requestId = useAttemptRequestId(() =>
 
 onMounted(() => {
   void loadServices()
+  void loadEmployees()
   void applyPresetCustomer()
 })
+
+/** 员工选择池：只加载启用中的员工；失败时可留空提交并重试 */
+async function loadEmployees(): Promise<void> {
+  loadingEmployees.value = true
+  employeesError.value = false
+  try {
+    employees.value = await listEmployees(EMPLOYEE_STATUS_ENABLED)
+  } catch {
+    // 拦截器已提示；卡片内展示「加载失败 + 重试」，不阻塞消费提交
+    employeesError.value = true
+  } finally {
+    loadingEmployees.value = false
+  }
+}
 
 /** 客户详情「快速消费」带 ?customer_id= 进入时预选客户 */
 async function applyPresetCustomer(): Promise<void> {
@@ -161,7 +195,7 @@ async function handleSubmit(): Promise<void> {
   const payload: OrderCreatePayload = {
     request_id: requestId.ensure(),
     customer_id: selectedCustomer.id,
-    employee_id: null,
+    employee_id: employeeId.value,
     status: mode.value,
     items: buildOrderItemPayloads(items.value),
   }

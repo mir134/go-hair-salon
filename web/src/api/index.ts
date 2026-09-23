@@ -99,3 +99,37 @@ export {
   updateSetting,
 } from './settings'
 export type { Setting } from './settings'
+export {
+  EMPLOYEE_STATUS_DISABLED,
+  EMPLOYEE_STATUS_ENABLED,
+  createEmployee,
+  disableEmployee,
+  getEmployee,
+  listEmployees,
+  updateEmployee,
+} from './employee'
+export type { Employee, EmployeePayload } from './employee'
+export {
+  USER_STATUS_DISABLED,
+  USER_STATUS_ENABLED,
+  createUser,
+  listUsers,
+  updateUser,
+} from './user'
+export type { User, UserCreatePayload, UserUpdatePayload } from './user'
+export {
+  getCustomers,
+  getEmployeePerformance,
+  getRevenue,
+  getSummary,
+} from './dashboard'
+export type {
+  DashboardCustomerPoint,
+  DashboardCustomers,
+  DashboardRangeQuery,
+  DashboardRevenue,
+  DashboardRevenuePoint,
+  DashboardSummary,
+  EmployeePerformance,
+  EmployeePerformanceRow,
+} from './dashboard'

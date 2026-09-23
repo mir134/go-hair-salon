@@ -25,7 +25,7 @@ export interface NavItem {
   roles: readonly UserRole[]
 }
 
-/** 左侧主导航（07-UI.md:19-30）：staff 仅 4 项，admin 额外 4 项 */
+/** 左侧主导航（07-UI.md:19-30）：staff 仅 4 项；admin 额外 5 项（含用户管理，plan todo 40） */
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/', title: 'Dashboard', roles: ['admin', 'staff'] },
   { path: '/customers', title: '客户', roles: ['admin', 'staff'] },
@@ -33,6 +33,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/recharges', title: '充值', roles: ['admin', 'staff'] },
   { path: '/services', title: '服务', roles: ['admin'] },
   { path: '/employees', title: '员工', roles: ['admin'] },
+  { path: '/users', title: '用户', roles: ['admin'] },
   { path: '/logs', title: '日志', roles: ['admin'] },
   { path: '/settings', title: '系统', roles: ['admin'] },
 ]
@@ -42,10 +43,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
  * 键为 NAV_ITEMS 的 path，值为真实页面组件（懒加载）。
  */
 const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
+  '/': () => import('@/views/dashboard/DashboardView.vue'),
   '/customers': () => import('@/views/customer/CustomerListView.vue'),
   '/orders': () => import('@/views/order/OrderListView.vue'),
   '/recharges': () => import('@/views/recharge/RechargeListView.vue'),
   '/services': () => import('@/views/service/ServiceListView.vue'),
+  '/employees': () => import('@/views/employee/EmployeeListView.vue'),
+  '/users': () => import('@/views/user/UserListView.vue'),
   '/logs': () => import('@/views/log/OperationLogListView.vue'),
   '/settings': () => import('@/views/system/SystemSettingsView.vue'),
 }
