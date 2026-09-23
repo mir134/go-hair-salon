@@ -36,14 +36,6 @@ type CustomerListQuery struct {
 	PageQuery
 }
 
-// CustomerPage 是客户分页结果（含归一化后的分页回显值）。
-type CustomerPage struct {
-	Items    []model.Customer
-	Total    int64
-	Page     int
-	PageSize int
-}
-
 // CustomerProfileInput 是新增/编辑客户的可写字段（DTO 与 Model 分离，04-API.md:300-302）。
 type CustomerProfileInput struct {
 	Name     string
@@ -57,7 +49,7 @@ type CustomerProfileInput struct {
 }
 
 // List 按条件分页查询客户。
-func (s *CustomerService) List(ctx context.Context, q CustomerListQuery) (*CustomerPage, error) {
+func (s *CustomerService) List(ctx context.Context, q CustomerListQuery) (*PageResult[model.Customer], error) {
 	offset, limit, page, pageSize := q.Normalize()
 	items, total, err := s.customers.List(ctx, repository.CustomerListFilter{
 		Keyword: q.Keyword,
@@ -70,7 +62,7 @@ func (s *CustomerService) List(ctx context.Context, q CustomerListQuery) (*Custo
 	if err != nil {
 		return nil, fmt.Errorf("查询客户列表失败: %w", err)
 	}
-	return &CustomerPage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
+	return &PageResult[model.Customer]{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // Get 按主键读取客户；不存在（含已软删除）返回 404 客户不存在。

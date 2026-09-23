@@ -45,8 +45,12 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	tokenSvc := service.NewTokenService(opts.JWTSecret, opts.TokenTTL)
 	authSvc := service.NewAuthService(userSvc, tokenSvc, logSvc)
 	authCtl := controller.NewAuthController(authSvc, logSvc)
-	customerSvc := service.NewCustomerService(repository.NewCustomerRepository(db))
+	customerRepo := repository.NewCustomerRepository(db)
+	customerSvc := service.NewCustomerService(customerRepo)
 	customerCtl := controller.NewCustomerController(customerSvc, logSvc)
+	detailSvc := service.NewCustomerDetailService(customerRepo,
+		repository.NewOrderRepository(db), repository.NewLedgerRepository(db))
+	detailCtl := controller.NewCustomerDetailController(detailSvc)
 
 	api := engine.Group("/api/v1")
 	auth := api.Group("/auth")
@@ -66,6 +70,10 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	both.POST("/customers", customerCtl.Create)
 	both.GET("/customers/:id", customerCtl.Get)
 	both.PUT("/customers/:id", customerCtl.Update)
+	// 客户详情聚合：消费记录 / 余额流水 / 积分流水（04-API.md:80-82）。
+	both.GET("/customers/:id/orders", detailCtl.ListOrders)
+	both.GET("/customers/:id/balance-transactions", detailCtl.ListBalanceTransactions)
+	both.GET("/customers/:id/points-transactions", detailCtl.ListPointsTransactions)
 
 	adminOnly := api.Group("",
 		middleware.JWTAuth(tokenSvc, userSvc, logger),

@@ -34,3 +34,13 @@ func (q PageQuery) Normalize() (offset, limit, page, pageSize int) {
 	}
 	return (page - 1) * pageSize, pageSize, page, pageSize
 }
+
+// PageResult 是分页查询结果，客户列表与客户详情聚合接口共用。
+//
+// Items 由各 service 保证为已初始化的切片（空结果序列化为 []，不是 null）。
+type PageResult[T any] struct {
+	Items    []T
+	Total    int64
+	Page     int
+	PageSize int
+}

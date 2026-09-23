@@ -33,6 +33,17 @@ func Success(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Response{Code: service.CodeOK, Message: "success", Data: data})
 }
 
+// SuccessPage 把 service 分页结果映射为 DTO 列表并输出统一分页信封（04-API.md:35-44）。
+//
+// Items 保证序列化为数组（空结果为 []，不是 null）。
+func SuccessPage[T, V any](c *gin.Context, result *service.PageResult[T], convert func(*T) V) {
+	items := make([]V, 0, len(result.Items))
+	for i := range result.Items {
+		items = append(items, convert(&result.Items[i]))
+	}
+	Success(c, PageData{Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize})
+}
+
 // Created 返回 201 成功信封（创建成功）。
 func Created(c *gin.Context, data any) {
 	c.JSON(http.StatusCreated, Response{Code: service.CodeOK, Message: "success", Data: data})

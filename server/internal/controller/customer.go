@@ -74,12 +74,7 @@ func (h *CustomerController) List(c *gin.Context) {
 		Fail(c, err)
 		return
 	}
-
-	items := make([]CustomerView, 0, len(result.Items))
-	for i := range result.Items {
-		items = append(items, newCustomerView(&result.Items[i]))
-	}
-	Success(c, PageData{Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize})
+	SuccessPage(c, result, newCustomerView)
 }
 
 // Create 处理 POST /api/v1/customers：非空手机号重复返回 409，first_visit_at=now。
