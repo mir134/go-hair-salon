@@ -2,7 +2,7 @@
   <main class="login">
     <el-card class="login__card">
       <h1 class="login__title">
-        {{ DEFAULT_SHOP_NAME }}
+        {{ shopName }}
       </h1>
       <p class="login__subtitle">
         客户管理系统
@@ -56,21 +56,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { useAuthStore } from '@/stores/auth'
+import { getShopInfo } from '@/api'
 import { DEFAULT_SHOP_NAME } from '@/constants'
+import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
+/** 登录页店名：优先公开端点 GET /shop 的配置店名，请求失败时兜底常量（不阻塞登录） */
+const shopName = ref(DEFAULT_SHOP_NAME)
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
+
+onMounted(() => {
+  void loadShopName()
+})
+
+/** 读取配置店名（免认证公开端点）；失败静默保留兜底值，登录流程不受影响 */
+async function loadShopName(): Promise<void> {
+  try {
+    const info = await getShopInfo()
+    if (info.shop_name.trim() !== '') {
+      shopName.value = info.shop_name
+    }
+  } catch {
+    // 拦截器已提示；保留兜底常量
+  }
+}
 
 /** 仅接受站内路径，防止开放重定向（//evil.com 之类） */
 function safeRedirect(value: unknown): string {

@@ -14,7 +14,8 @@ import (
 
 // EmployeeController 提供员工 CRUD（04-API.md:194-204）。
 //
-// 权限边界由路由中间件保证：员工接口全部仅 admin（06 §7）。
+// 权限边界由路由中间件保证：员工列表查询 both（快速消费/挂单需选择服务员工），
+// 其余（创建/修改/停用/按 id 查询）仅 admin（06 §7、04-API.md:194-204）。
 // DELETE /employees/:id 的语义是停用（status=0，行保留，D7 决议），
 // 审计日志在业务写操作完成后、事务之外写入（见 service.WriteLog）。
 type EmployeeController struct {
@@ -53,7 +54,7 @@ type EmployeeView struct {
 	Remark   string     `json:"remark"`
 }
 
-// List 处理 GET /api/v1/employees（仅 admin）：含已停用员工；
+// List 处理 GET /api/v1/employees（both）：含已停用员工；
 // ?status=0|1 可选过滤（非法值宽松回退，不得 500）。
 func (h *EmployeeController) List(c *gin.Context) {
 	rows, err := h.employees.List(c.Request.Context(), parseStatusQuery(c))

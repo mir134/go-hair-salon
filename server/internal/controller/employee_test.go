@@ -96,7 +96,6 @@ func TestEmployees(t *testing.T) {
 		logsBefore := env.countOperationLogs(t, "")
 
 		cases := []struct{ method, path, body string }{
-			{http.MethodGet, "/api/v1/employees", ""},
 			{http.MethodPost, "/api/v1/employees", `{"name":"无权限员工"}`},
 			{http.MethodGet, "/api/v1/employees/1", ""},
 			{http.MethodPut, "/api/v1/employees/1", `{"name":"无权限员工"}`},
@@ -118,6 +117,15 @@ func TestEmployees(t *testing.T) {
 		}
 		if got := env.countOperationLogs(t, ""); got != logsBefore {
 			t.Errorf("staff 403 后 operation_logs = %d, want %d（零审计）", got, logsBefore)
+		}
+	})
+
+	// 员工列表查询对 staff 开放：快速消费/挂单需选择服务员工（07-UI.md:50）；
+	// 曾因误置为 admin-only 导致 staff 消费页 GET /employees?status=1 返回 403。
+	t.Run("staff_can_list_employees_for_consumption", func(t *testing.T) {
+		w := env.authed(http.MethodGet, "/api/v1/employees?status=1", "", env.staffToken)
+		if w.Code != http.StatusOK {
+			t.Fatalf("staff GET /employees?status=1 status = %d, want 200 (body=%s)", w.Code, w.Body.String())
 		}
 	})
 

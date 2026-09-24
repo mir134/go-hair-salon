@@ -32,3 +32,16 @@ export function listSettings(): Promise<Setting[]> {
 export function updateSetting(key: string, value: string): Promise<Setting> {
   return put<Setting>(`/settings/${encodeURIComponent(key)}`, { value })
 }
+
+/** 门店公开信息（GET /shop，免认证，仅店名）。 */
+export interface ShopInfo {
+  shop_name: string
+}
+
+/**
+ * GET /shop（免认证）：登录页展示配置门店名称（settings.shop_name）。
+ * 登录页尚未认证，无法调用受保护的 GET /settings，故走该公开只读端点。
+ */
+export function getShopInfo(): Promise<ShopInfo> {
+  return get<ShopInfo>('/shop')
+}

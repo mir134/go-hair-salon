@@ -5,12 +5,12 @@
     v-model="visible"
     direction="btt"
     size="86%"
-    title="新增用户"
+    :title="dialogTitle"
     :close-on-click-modal="false"
   >
-    <UserCreatePanel
+    <TagFormPanel
       v-if="visible"
-      :employees="employees"
+      :tag="tag"
       @saved="emit('saved')"
       @close="visible = false"
     />
@@ -20,13 +20,13 @@
   <el-dialog
     v-else
     v-model="visible"
-    title="新增用户"
-    width="520px"
+    :title="dialogTitle"
+    width="420px"
     :close-on-click-modal="false"
   >
-    <UserCreatePanel
+    <TagFormPanel
       v-if="visible"
-      :employees="employees"
+      :tag="tag"
       @saved="emit('saved')"
       @close="visible = false"
     />
@@ -36,21 +36,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { Employee } from '@/api'
+import type { Tag } from '@/api'
 import { useIsMobile } from '@/composables/useIsMobile'
 
-import UserCreatePanel from './UserCreatePanel.vue'
+import TagFormPanel from './TagFormPanel.vue'
 
-// 新增用户外壳（plan todo 40/54）：表单与提交逻辑在 UserCreatePanel 内（两种外壳共用）。
-// 手机端用底部抽屉（大触控区域），PC 端保持弹窗；打开时由 Panel 负责初始化。
+// 标签新增/编辑外壳（plan todo 54）：表单与提交逻辑在 TagFormPanel 内（两种外壳共用）。
+// 手机端用底部抽屉（大触控区域），PC 端保持弹窗；打开时由 Panel 负责回填。
 const props = defineProps<{
   modelValue: boolean
-  employees: Employee[]
+  tag: Tag | null
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  /** 用户创建成功，父级需刷新列表 */
   saved: []
 }>()
 
@@ -60,4 +59,6 @@ const visible = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value),
 })
+
+const dialogTitle = computed(() => (props.tag === null ? '新增标签' : '编辑标签'))
 </script>

@@ -18,14 +18,9 @@
         :value="option.id"
       />
     </el-select>
-    <el-date-picker
+    <ResponsiveDatePicker
       v-model="range"
-      type="daterange"
-      unlink-panels
-      range-separator="至"
-      start-placeholder="开始日期"
-      end-placeholder="结束日期"
-      value-format="YYYY-MM-DD"
+      mode="range"
     />
     <el-button @click="reset">
       重置
@@ -38,6 +33,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import { listCustomers } from '@/api'
 import type { Customer, CustomerListQuery } from '@/api'
+import ResponsiveDatePicker from '@/components/ResponsiveDatePicker.vue'
 import type { RechargeListFilters } from '@/utils/rechargeForm'
 
 // 充值记录筛选（plan todo 33：分页/日期/客户筛选）：
@@ -132,10 +128,6 @@ function reset(): void {
   }
 
   .recharge-filters__customer {
-    width: 100%;
-  }
-
-  .recharge-filters .el-date-editor {
     width: 100%;
   }
 }

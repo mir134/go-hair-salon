@@ -188,7 +188,7 @@ func TestE2EFlows(t *testing.T) {
 	}
 
 	// ---------- 对抗性：malformed_input 与权限边界 ----------
-	t.Log("对抗性：搜索无结果 / 余额不足 422 / 非法 JSON 400 / 非法 id 400 / staff 403 / 未知 API 404")
+	t.Log("对抗性：搜索无结果 / 余额不足 422 / 非法 JSON 400 / 非法 id 400 / staff 可读员工列表 / 未知 API 404")
 	var empty e2ePage[struct {
 		ID int64 `json:"id"`
 	}]
@@ -215,7 +215,11 @@ func TestE2EFlows(t *testing.T) {
 
 	env.callBizError(http.MethodPost, "/api/v1/customers", adminToken, `{"name":`, http.StatusBadRequest, service.CodeInvalidParams)
 	env.callBizError(http.MethodGet, "/api/v1/customers/abc", adminToken, "", http.StatusBadRequest, service.CodeInvalidParams)
-	env.callBizError(http.MethodGet, "/api/v1/employees", staffToken, "", http.StatusForbidden, service.CodeForbidden)
+	// 员工列表 staff 可读（快速消费/挂单需选择服务员工，07-UI.md:50）；员工写操作仍仅 admin。
+	var employeesForStaff []struct {
+		ID int64 `json:"id"`
+	}
+	env.callData(http.MethodGet, "/api/v1/employees", staffToken, "", http.StatusOK, &employeesForStaff)
 	notFoundBody := env.call(http.MethodGet, "/api/v1/nope", adminToken, "", http.StatusNotFound)
 	if strings.Contains(string(notFoundBody), "<html") {
 		t.Fatalf("未知 API 路由回退了 HTML：%s", notFoundBody)

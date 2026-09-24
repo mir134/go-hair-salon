@@ -193,7 +193,7 @@ POST /customers/:id/balance-adjustments
 
 ## Employees
 
-权限：`admin`。
+权限：查询 `both`（快速消费/挂单需选择服务员工，07-UI.md:50）；创建/修改/删除 `admin`。
 
 ```
 GET    /employees
@@ -253,6 +253,16 @@ POST /backups/:id/restore      # 恢复（二次确认）
 ```
 
 恢复流程遵循 08-DEPLOYMENT.md 第 7 节：恢复前自动生成当前数据安全备份，恢复后执行数据检查。
+
+## Shop
+
+免认证。登录页展示配置门店名称（取自 `settings.shop_name`）。
+
+```
+GET /shop
+```
+
+响应 data：`{"shop_name":"理发店"}`。
 
 ## Health
 

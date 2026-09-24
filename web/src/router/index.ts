@@ -27,12 +27,13 @@ export interface NavItem {
 
 /** 左侧主导航（07-UI.md:19-30）：staff 仅 4 项；admin 额外 5 项（含用户管理，plan todo 40） */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/', title: 'Dashboard', roles: ['admin', 'staff'] },
+  { path: '/', title: '首页', roles: ['admin', 'staff'] },
   { path: '/customers', title: '客户', roles: ['admin', 'staff'] },
   { path: '/orders', title: '消费', roles: ['admin', 'staff'] },
   { path: '/recharges', title: '充值', roles: ['admin', 'staff'] },
   { path: '/services', title: '服务', roles: ['admin'] },
   { path: '/employees', title: '员工', roles: ['admin'] },
+  { path: '/tags', title: '标签', roles: ['admin'] },
   { path: '/users', title: '用户', roles: ['admin'] },
   { path: '/logs', title: '日志', roles: ['admin'] },
   // 备份与恢复（plan todo 52）：独立 admin 导航项，位于「日志」与「系统」之间；
@@ -52,6 +53,7 @@ const NAV_COMPONENTS: Readonly<Record<string, RouteRecordRaw['component']>> = {
   '/recharges': () => import('@/views/recharge/RechargeListView.vue'),
   '/services': () => import('@/views/service/ServiceListView.vue'),
   '/employees': () => import('@/views/employee/EmployeeListView.vue'),
+  '/tags': () => import('@/views/tag/TagListView.vue'),
   '/users': () => import('@/views/user/UserListView.vue'),
   '/logs': () => import('@/views/log/OperationLogListView.vue'),
   '/backups': () => import('@/views/backup/BackupListView.vue'),

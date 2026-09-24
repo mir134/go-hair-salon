@@ -2,13 +2,14 @@
   <el-card
     shadow="never"
     class="category-panel"
+    :class="{ 'category-panel--mobile': isMobile }"
   >
     <template #header>
       <div class="category-panel__header">
         <span class="category-panel__title">服务分类</span>
         <el-button
           type="primary"
-          size="small"
+          :size="isMobile ? 'large' : 'small'"
           @click="openCreate"
         >
           新增分类
@@ -16,7 +17,54 @@
       </div>
     </template>
 
+    <!-- 手机端（<768px）：卡片列表替代表格（plan todo 53/54、07-UI.md:119） -->
+    <div
+      v-if="isMobile"
+      v-loading="loading"
+      class="category-cards"
+    >
+      <article
+        v-for="category in sortedCategories"
+        :key="category.id"
+        class="category-card"
+      >
+        <header class="category-card__head">
+          <span class="category-card__name">{{ category.name }}</span>
+          <el-tag
+            :type="category.status === 1 ? 'success' : 'info'"
+            size="small"
+          >
+            {{ category.status === 1 ? '启用' : '停用' }}
+          </el-tag>
+        </header>
+
+        <div class="category-card__meta">
+          <span>排序 {{ category.sort }}</span>
+        </div>
+
+        <footer class="category-card__actions">
+          <el-button @click="openEdit(category.id)">
+            编辑
+          </el-button>
+          <el-button
+            type="danger"
+            plain
+            @click="handleDelete(category.id)"
+          >
+            删除
+          </el-button>
+        </footer>
+      </article>
+
+      <el-empty
+        v-if="!loading && sortedCategories.length === 0"
+        description="暂无分类"
+      />
+    </div>
+
+    <!-- PC：保持原有表格形态与列不变 -->
     <el-table
+      v-else
       v-loading="loading"
       :data="sortedCategories"
       row-key="id"
@@ -86,10 +134,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { ApiError, CODE_VALIDATION_FAILED, deleteServiceCategory } from '@/api'
 import type { ServiceCategory } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 import ServiceCategoryDialog from './ServiceCategoryDialog.vue'
 
 // 分类面板：列表 + 新增/编辑/删除。数据由父级加载，变更后 emit('changed') 触发刷新。
+// 手机端（<768px）：同一份数据/逻辑渲染卡片列表，PC 保持表格（plan todo 53/54）。
 const props = defineProps<{
   categories: ServiceCategory[]
   loading: boolean
@@ -100,6 +150,7 @@ const emit = defineEmits<{
   changed: []
 }>()
 
+const isMobile = useIsMobile()
 const dialogVisible = ref(false)
 const editing = ref<ServiceCategory | null>(null)
 
@@ -165,5 +216,57 @@ async function handleDelete(id: number): Promise<void> {
 .category-panel__title {
   font-size: 15px;
   font-weight: 600;
+}
+
+/* 手机端头部按钮加大到 ≥44px（plan todo 53/54） */
+.category-panel--mobile .category-panel__header .el-button {
+  min-height: 44px;
+  margin-left: 0;
+}
+
+/* 手机端卡片列表（plan todo 53/54、07-UI.md:119） */
+.category-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-card {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+}
+
+.category-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.category-card__name {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.category-card__meta {
+  margin-top: 6px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 触控目标 ≥44px（plan todo 53/54） */
+.category-card__actions .el-button {
+  min-height: 44px;
+  margin-left: 0;
 }
 </style>

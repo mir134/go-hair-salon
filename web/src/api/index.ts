@@ -36,8 +36,8 @@ export type {
   PageQuery,
   PointsTransaction,
 } from './customer'
-export { attachCustomerTag, detachCustomerTag, listTags } from './tag'
-export type { Tag } from './tag'
+export { attachCustomerTag, createTag, deleteTag, detachCustomerTag, listTags, updateTag } from './tag'
+export type { Tag, TagPayload } from './tag'
 export {
   addOrderItem,
   cancelOrder,
@@ -100,10 +100,11 @@ export type {
 export {
   SETTING_KEY_POINTS_PER_YUAN,
   SETTING_KEY_SHOP_NAME,
+  getShopInfo,
   listSettings,
   updateSetting,
 } from './settings'
-export type { Setting } from './settings'
+export type { Setting, ShopInfo } from './settings'
 export {
   EMPLOYEE_STATUS_DISABLED,
   EMPLOYEE_STATUS_ENABLED,

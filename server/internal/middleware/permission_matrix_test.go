@@ -46,7 +46,7 @@ const (
 	policyAdmin = "admin"
 )
 
-// protectedPolicies 是 /api/v1 下全部受保护路由的期望策略（免认证的 /health 与 /auth/login 除外）。
+// protectedPolicies 是 /api/v1 下全部受保护路由的期望策略（免认证的 /auth/login 与 /shop 除外）。
 //
 // 该表与 engine.Routes() 双向比对；新增路由必须在此登记（04-API.md:60-68）。
 var protectedPolicies = map[string]string{
@@ -66,21 +66,23 @@ var protectedPolicies = map[string]string{
 	"GET /api/v1/service-categories":                 policyBoth,
 	"GET /api/v1/services":                           policyBoth,
 	"GET /api/v1/services/:id":                       policyBoth,
-	"POST /api/v1/orders":                            policyBoth,
-	"GET /api/v1/orders":                             policyBoth,
-	"GET /api/v1/orders/:id":                         policyBoth,
-	"POST /api/v1/orders/:id/items":                  policyBoth,
-	"PUT /api/v1/orders/:id/items/:item_id":          policyBoth,
-	"DELETE /api/v1/orders/:id/items/:item_id":       policyBoth,
-	"POST /api/v1/orders/:id/pay":                    policyBoth,
-	"POST /api/v1/recharges":                         policyBoth,
-	"GET /api/v1/recharges":                          policyBoth,
-	"GET /api/v1/settings":                           policyBoth,
-	"GET /api/v1/dashboard/summary":                  policyBoth,
-	"GET /api/v1/dashboard/revenue":                  policyBoth,
-	"GET /api/v1/dashboard/customers":                policyBoth,
-	"GET /api/v1/dashboard/employee-performance":     policyBoth,
-	"POST /api/v1/uploads":                           policyBoth,
+	// 员工列表 both：快速消费/挂单需选择服务员工（07-UI.md:50）；员工写操作仍 admin。
+	"GET /api/v1/employees":                      policyBoth,
+	"POST /api/v1/orders":                        policyBoth,
+	"GET /api/v1/orders":                         policyBoth,
+	"GET /api/v1/orders/:id":                     policyBoth,
+	"POST /api/v1/orders/:id/items":              policyBoth,
+	"PUT /api/v1/orders/:id/items/:item_id":      policyBoth,
+	"DELETE /api/v1/orders/:id/items/:item_id":   policyBoth,
+	"POST /api/v1/orders/:id/pay":                policyBoth,
+	"POST /api/v1/recharges":                     policyBoth,
+	"GET /api/v1/recharges":                      policyBoth,
+	"GET /api/v1/settings":                       policyBoth,
+	"GET /api/v1/dashboard/summary":              policyBoth,
+	"GET /api/v1/dashboard/revenue":              policyBoth,
+	"GET /api/v1/dashboard/customers":            policyBoth,
+	"GET /api/v1/dashboard/employee-performance": policyBoth,
+	"POST /api/v1/uploads":                       policyBoth,
 	// --- admin only：06 §7 staff 禁区 ---
 	"DELETE /api/v1/customers/:id":                   policyAdmin,
 	"POST /api/v1/tags":                              policyAdmin,
@@ -101,7 +103,6 @@ var protectedPolicies = map[string]string{
 	"GET /api/v1/backups":                            policyAdmin,
 	"POST /api/v1/backups":                           policyAdmin,
 	"POST /api/v1/backups/:id/restore":               policyAdmin,
-	"GET /api/v1/employees":                          policyAdmin,
 	"POST /api/v1/employees":                         policyAdmin,
 	"GET /api/v1/employees/:id":                      policyAdmin,
 	"PUT /api/v1/employees/:id":                      policyAdmin,
@@ -120,7 +121,7 @@ var staffForbiddenRoutes = map[string]string{
 	"删除客户":   "DELETE /api/v1/customers/:id",
 	"系统设置修改": "PUT /api/v1/settings/:key",
 	"操作日志":   "GET /api/v1/operation-logs",
-	"员工管理":   "GET /api/v1/employees",
+	"员工管理":   "POST /api/v1/employees",
 	"用户管理":   "POST /api/v1/users",
 	"数据恢复":   "POST /api/v1/backups/:id/restore",
 }
@@ -287,12 +288,21 @@ func TestPermissionMatrix(t *testing.T) {
 	env := newPermissionEnv(t)
 
 	// --- Given: 真实路由表与期望策略双向比对（防漂移） ---
+	// 免认证公开路由：不进入受保护矩阵（下方单独断言可匿名访问）。
+	publicRoutes := map[string]struct{}{
+		"POST /api/v1/auth/login": {},
+		"GET /api/v1/shop":        {},
+	}
 	routeKeys := make(map[string]struct{})
 	for _, r := range env.engine.Routes() {
-		if !strings.HasPrefix(r.Path, "/api/v1") || r.Path == "/api/v1/auth/login" {
+		if !strings.HasPrefix(r.Path, "/api/v1") {
 			continue
 		}
-		routeKeys[r.Method+" "+r.Path] = struct{}{}
+		key := r.Method + " " + r.Path
+		if _, isPublic := publicRoutes[key]; isPublic {
+			continue
+		}
+		routeKeys[key] = struct{}{}
 	}
 	if len(routeKeys) == 0 {
 		t.Fatal("engine.Routes() 未返回任何受保护路由")
@@ -332,6 +342,17 @@ func TestPermissionMatrix(t *testing.T) {
 			requireGate(t, "admin", env.request(method, path, "", env.adminToken), "pass")
 		})
 	}
+
+	// --- Then: 公开路由免认证可访问（非 401/403） ---
+	t.Run("public routes require no auth", func(t *testing.T) {
+		for key := range publicRoutes {
+			method, routePath, _ := strings.Cut(key, " ")
+			w := env.request(method, probePath(routePath), "", "")
+			if w.Code == http.StatusUnauthorized || w.Code == http.StatusForbidden {
+				t.Errorf("公开路由 %s 匿名访问被拒: status = %d (body=%s)", key, w.Code, w.Body.String())
+			}
+		}
+	})
 
 	// --- Then: 06 §7 staff 明确禁区显式断言（策略表 + 实测 403） ---
 	t.Run("staff forbidden categories", func(t *testing.T) {

@@ -1,10 +1,10 @@
 import type { OrderPaymentMethod } from '@/api'
 
 /**
- * 登录页门店名称占位常量。
+ * 登录页门店名称兜底常量。
  *
- * 顶栏（AppShell）已改为读取 settings API（`settings.shop_name`，todo 41-42）；
- * 登录页尚未认证、无法调用受保护的 GET /settings，只能用本地占位值。
+ * 顶栏（AppShell）读取 settings API（`settings.shop_name`）；
+ * 登录页未认证，改由公开端点 GET /shop 读取配置店名，本常量仅在其不可用时兜底展示。
  * 业务页面禁止使用本常量渲染门店名称。
  */
 export const DEFAULT_SHOP_NAME = '理发店'

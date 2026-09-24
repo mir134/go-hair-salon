@@ -2,7 +2,7 @@
   <el-drawer
     v-model="visible"
     title="日志详情"
-    size="520px"
+    :size="isMobile ? '100%' : '520px'"
   >
     <el-descriptions
       v-if="log !== null"
@@ -42,6 +42,7 @@
 import { computed } from 'vue'
 
 import type { OperationLog } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { formatDateTime } from '@/utils/format'
 import {
   operationLogActionLabel,
@@ -51,6 +52,8 @@ import {
 
 // 日志详情抽屉（plan todo 48）：content / ip / user_agent 全文展示；
 // 审计记录只读，无任何编辑入口。
+// 手机端（<768px）：抽屉占满整屏（plan todo 53/54），避免 IP/User-Agent/内容长文本被挤压；
+// PC 端保持 520px 侧边抽屉。
 const props = defineProps<{
   modelValue: boolean
   log: OperationLog | null
@@ -59,6 +62,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
 }>()
+
+const isMobile = useIsMobile()
 
 const visible = computed({
   get: () => props.modelValue,

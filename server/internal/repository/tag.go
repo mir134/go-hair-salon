@@ -3,11 +3,23 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
 	"github.com/mir134/go-hair-salon/server/internal/model"
 )
+
+// defaultTags 是首次启动播种的默认客户标签（03-DATABASE.md:69-77）。
+//
+// 03-DATABASE.md 未定义默认标签清单，以下 4 项由产品负责人确认（固定值，不得擅自增减）；
+// color 留空：前端不渲染标签颜色。
+var defaultTags = []model.Tag{
+	{Name: "老客户"},
+	{Name: "新客"},
+	{Name: "会员"},
+	{Name: "意向客户"},
+}
 
 // TagRepository 提供 tags 与 customer_tag_relations 的读写访问。
 //
@@ -116,6 +128,28 @@ func (r *TagRepository) DetachRelation(ctx context.Context, customerID, tagID in
 	}
 	if res.RowsAffected == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+// EnsureDefaultTags 幂等播种默认客户标签：仅在 tags 表物理为空时插入。
+//
+// 刻意使用 Unscoped 统计：软删除的标签仍占用表行，说明表并非全新空库；
+// 管理员删光全部默认标签后，下次重启不会把它们复活（03-DATABASE.md:69-77）。
+//
+// tags 默认清单未在 03-DATABASE.md 中定义，以下 4 项由产品负责人确认（固定值）。
+func EnsureDefaultTags(db *gorm.DB) error {
+	var count int64
+	if err := db.Unscoped().Model(&model.Tag{}).Count(&count).Error; err != nil {
+		return fmt.Errorf("统计 tags 行数失败: %w", err)
+	}
+	if count > 0 {
+		return nil // 已有标签（含自定义或已软删除），保持原样
+	}
+	items := make([]model.Tag, len(defaultTags))
+	copy(items, defaultTags)
+	if err := db.Create(&items).Error; err != nil {
+		return fmt.Errorf("播种 tags 默认值失败: %w", err)
 	}
 	return nil
 }

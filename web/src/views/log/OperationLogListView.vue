@@ -1,6 +1,9 @@
 <template>
   <section class="log-list">
-    <div class="log-list__head">
+    <div
+      class="log-list__head"
+      :class="{ 'log-list__head--mobile': isMobile }"
+    >
       <span class="log-list__title">操作日志</span>
       <span class="log-list__hint">审计记录只读，按时间倒序（最新在前）</span>
     </div>
@@ -36,6 +39,7 @@ import { onMounted, ref } from 'vue'
 import { listOperationLogs } from '@/api'
 import type { OperationLog } from '@/api'
 import ListPagination from '@/components/ListPagination.vue'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { usePagedList } from '@/composables/usePagedList'
 import { emptyOperationLogFilters } from '@/utils/operationLog'
 import type { OperationLogFilters } from '@/utils/operationLog'
@@ -46,6 +50,8 @@ import LogTable from './components/LogTable.vue'
 
 // 操作日志页（plan todo 48、05-TASKS.md:150-155）：仅 admin 菜单/路由（路由守卫）；
 // 列表 + 操作人/动作/日期筛选 + 详情抽屉（content/ip/ua）；后端 RBAC 是最终边界。
+// 手机端（<768px，plan todo 53/54）：标题/说明上下排布，列表与筛选由子组件切换为卡片+大控件。
+const isMobile = useIsMobile()
 const filters = ref<OperationLogFilters>(emptyOperationLogFilters())
 const operators = ref<{ id: number; name: string }[]>([])
 const selected = ref<OperationLog | null>(null)
@@ -123,5 +129,12 @@ function openDetail(log: OperationLog): void {
 .log-list__hint {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+/* 手机端（<768px）：标题与说明上下排布，避免 375px 视口挤压（plan todo 53/54） */
+.log-list__head--mobile {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 </style>

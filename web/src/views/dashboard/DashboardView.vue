@@ -4,16 +4,11 @@
     <MobileQuickEntries v-if="isMobile" />
 
     <div class="dashboard__head">
-      <span class="dashboard__title">Dashboard</span>
+      <span class="dashboard__title">首页</span>
       <div class="dashboard__toolbar">
-        <el-date-picker
+        <ResponsiveDatePicker
           v-model="range"
-          type="daterange"
-          unlink-panels
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          value-format="YYYY-MM-DD"
+          mode="range"
           @change="handleRangeChange"
         />
         <el-button @click="handleRefresh">
@@ -91,6 +86,7 @@ import {
   todayRange,
 } from '@/utils/dashboard'
 import type { DateRange } from '@/utils/dashboard'
+import ResponsiveDatePicker from '@/components/ResponsiveDatePicker.vue'
 import { useIsMobile } from '@/composables/useIsMobile'
 
 import DashboardKpiCards from './components/DashboardKpiCards.vue'

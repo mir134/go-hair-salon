@@ -41,11 +41,10 @@
     label="生日"
     prop="birthday"
   >
-    <el-date-picker
+    <ResponsiveDatePicker
       v-model="form.birthday"
       class="customer-fields__control"
-      type="date"
-      value-format="YYYY-MM-DD"
+      mode="date"
       placeholder="选择日期"
     />
   </el-form-item>
@@ -114,6 +113,7 @@ import { GENDER_LABELS } from '@/constants'
 import type { CustomerProfileForm } from '@/utils/customerProfile'
 
 import AvatarUpload from '@/components/AvatarUpload.vue'
+import ResponsiveDatePicker from '@/components/ResponsiveDatePicker.vue'
 
 // 客户表单字段：校验上下文由父级 el-form 提供（provide/inject 跨组件生效）。
 const form = defineModel<CustomerProfileForm>({ required: true })

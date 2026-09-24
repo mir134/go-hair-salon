@@ -3,10 +3,15 @@
     shadow="never"
     class="user-table"
   >
-    <div class="user-table__toolbar">
+    <!-- 工具栏：手机端纵向排列 + 大控件（plan todo 53/54、07-UI.md:87,114） -->
+    <div
+      class="user-table__toolbar"
+      :class="{ 'user-table__toolbar--mobile': isMobile }"
+    >
       <el-select
         v-model="statusFilter"
         class="user-table__filter"
+        :size="isMobile ? 'large' : 'default'"
       >
         <el-option
           label="全部状态"
@@ -23,13 +28,76 @@
       </el-select>
       <el-button
         type="primary"
+        :size="isMobile ? 'large' : 'default'"
         @click="createVisible = true"
       >
         新增用户
       </el-button>
     </div>
 
+    <!-- 手机端（<768px）：卡片列表替代表格（plan todo 53/54、07-UI.md:119、02-AGENTS.md:92） -->
+    <div
+      v-if="isMobile"
+      v-loading="loading"
+      class="user-cards"
+    >
+      <article
+        v-for="user in filteredUsers"
+        :key="user.id"
+        class="user-card"
+      >
+        <header class="user-card__head">
+          <span class="user-card__name">{{ user.username }}</span>
+          <el-tag
+            :type="user.role === 'admin' ? 'warning' : 'info'"
+            size="small"
+          >
+            {{ roleLabel(user.role) }}
+          </el-tag>
+        </header>
+
+        <div class="user-card__status">
+          <span class="user-card__status-label">状态</span>
+          <el-tag
+            :type="user.status === USER_STATUS_ENABLED ? 'success' : 'info'"
+            size="small"
+          >
+            {{ user.status === USER_STATUS_ENABLED ? '启用' : '停用' }}
+          </el-tag>
+        </div>
+
+        <footer class="user-card__actions">
+          <el-button @click="openPasswordDialog(user.id)">
+            重置密码
+          </el-button>
+          <el-button
+            v-if="user.status === USER_STATUS_ENABLED"
+            type="danger"
+            plain
+            :loading="togglingId === user.id"
+            @click="handleStatus(user.id, USER_STATUS_DISABLED)"
+          >
+            停用
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            :loading="togglingId === user.id"
+            @click="handleStatus(user.id, USER_STATUS_ENABLED)"
+          >
+            启用
+          </el-button>
+        </footer>
+      </article>
+
+      <el-empty
+        v-if="!loading && filteredUsers.length === 0"
+        description="暂无用户"
+      />
+    </div>
+
     <el-table
+      v-else
       v-loading="loading"
       :data="filteredUsers"
       row-key="id"
@@ -131,6 +199,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { USER_STATUS_DISABLED, USER_STATUS_ENABLED, updateUser } from '@/api'
 import type { Employee, User, UserRole } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 import UserCreateDialog from './UserCreateDialog.vue'
 import UserPasswordDialog from './UserPasswordDialog.vue'
@@ -138,6 +207,7 @@ import UserPasswordDialog from './UserPasswordDialog.vue'
 // 用户表格（plan todo 40，D6 决议）：列表 + 创建用户 + 重置密码 + 停用/启用。
 // 后端没有用户删除接口，因此不提供删除；停用走 PUT status=0（行保留），
 // 停用后旧 token 立即失效（后端 JWT 中间件每次请求实时查库）。
+// 手机端（<768px）：卡片列表替代表格、工具栏纵向大控件（plan todo 53/54、07-UI.md:119）。
 const props = defineProps<{
   users: User[]
   employees: Employee[]
@@ -151,6 +221,7 @@ const emit = defineEmits<{
 
 const ROLE_LABELS: Readonly<Record<UserRole, string>> = { admin: '管理员', staff: '店员' }
 
+const isMobile = useIsMobile()
 const statusFilter = ref<'all' | 'enabled' | 'disabled'>('all')
 const createVisible = ref(false)
 const passwordVisible = ref(false)
@@ -242,5 +313,73 @@ async function handleStatus(id: number, status: number): Promise<void> {
 
 .user-table__filter {
   width: 160px;
+}
+
+/* 手机端：整行布局，触控目标 ≥44px（plan todo 53/54） */
+.user-table__toolbar--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.user-table__toolbar--mobile .user-table__filter {
+  width: 100%;
+}
+
+.user-table__toolbar--mobile .el-button {
+  min-height: 44px;
+  margin-left: 0;
+}
+
+/* 手机端卡片列表（plan todo 53/54） */
+.user-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.user-card {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+}
+
+.user-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.user-card__name {
+  font-size: 17px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.user-card__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.user-card__status-label {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.user-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 触控目标 ≥44px（plan todo 53/54） */
+.user-card__actions .el-button {
+  min-height: 44px;
+  margin-left: 0;
 }
 </style>

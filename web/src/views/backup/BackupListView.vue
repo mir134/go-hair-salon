@@ -1,6 +1,9 @@
 <template>
   <section class="backup-list">
-    <div class="backup-list__head">
+    <div
+      class="backup-list__head"
+      :class="{ 'backup-list__head--mobile': isMobile }"
+    >
       <div>
         <span class="backup-list__title">备份与恢复</span>
         <span class="backup-list__hint">
@@ -9,6 +12,7 @@
       </div>
       <el-button
         type="primary"
+        :size="isMobile ? 'large' : 'default'"
         :loading="creating"
         @click="handleCreate"
       >
@@ -38,6 +42,7 @@ import { ElMessage } from 'element-plus'
 
 import { createBackup, listBackups } from '@/api'
 import type { Backup, RestoreResult } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 
 import BackupRestoreDialog from './components/BackupRestoreDialog.vue'
 import BackupTable from './components/BackupTable.vue'
@@ -45,6 +50,8 @@ import BackupTable from './components/BackupTable.vue'
 // 备份与恢复页（plan todo 52、04-API.md:245-256）：仅 admin 菜单/路由（守卫）；
 // 列表（文件名/大小/创建时间）+ 手动备份 + 恢复（二次确认弹窗）。
 // 备份接口不提供分页（GET /backups 返回全部，含 total），因此使用简单加载器而非 usePagedList。
+// 手机端（<768px，plan todo 53/54）：标题/说明与按钮上下排布，按钮全宽大号；列表与恢复弹窗由子组件切换。
+const isMobile = useIsMobile()
 const items = ref<Backup[]>([])
 const loading = ref(false)
 const creating = ref(false)
@@ -109,5 +116,24 @@ function handleRestored(result: RestoreResult): void {
   margin-left: 12px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+/* 手机端（<768px）：标题/说明与按钮上下排布，按钮全宽 ≥44px（plan todo 53/54） */
+.backup-list__head--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.backup-list__head--mobile .backup-list__hint {
+  display: block;
+  margin-left: 0;
+  margin-top: 4px;
+}
+
+.backup-list__head--mobile .el-button {
+  width: 100%;
+  min-height: 44px;
+  margin-left: 0;
 }
 </style>

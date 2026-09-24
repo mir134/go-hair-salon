@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/mir134/go-hair-salon/server/internal/model"
 	"github.com/mir134/go-hair-salon/server/internal/service"
 )
 
@@ -37,6 +38,31 @@ type SettingView struct {
 	Description string    `json:"description"`
 	UpdatedBy   *int64    `json:"updated_by"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// ShopInfoView 是登录页等未认证场景可见的门店公开信息（仅店名）。
+type ShopInfoView struct {
+	ShopName string `json:"shop_name"`
+}
+
+// PublicShopInfo 处理 GET /api/v1/shop（免认证）：仅返回门店名称。
+//
+// 登录页无 token，无法调用受保护的 GET /settings；店名属公开信息（顶栏/登录页展示），
+// 故提供单独只读公开端点，不暴露其它设置项。
+func (h *SettingsController) PublicShopInfo(c *gin.Context) {
+	views, err := h.settings.List(c.Request.Context())
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	name := model.DefaultShopName
+	for i := range views {
+		if views[i].Key == model.SettingShopName {
+			name = views[i].Value
+			break
+		}
+	}
+	Success(c, ShopInfoView{ShopName: name})
 }
 
 // List 处理 GET /api/v1/settings（both）：data 为设置数组（仅公开键，空结果为 []）。

@@ -183,10 +183,16 @@ function handleAdminCommand(command: string | number | object): void {
   border-right: none;
 }
 
+/* 顶部导航固定：滚动时吸附视口顶部，不随内容滚走（07-UI.md:23 顶部区域）。
+   需要不透明底色，否则滚动内容会透到栏下；z-index 低于 Element Plus 弹层（2000+）。 */
 .shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #fff;
   border-bottom: 1px solid var(--el-border-color-light);
 }
 

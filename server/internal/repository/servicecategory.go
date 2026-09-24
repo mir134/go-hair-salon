@@ -3,11 +3,24 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
 	"github.com/mir134/go-hair-salon/server/internal/model"
 )
+
+// defaultServiceCategories 是首次启动播种的默认服务分类（03-DATABASE.md:87-96）。
+//
+// 03-DATABASE.md 未定义默认分类清单，以下 5 项由产品负责人确认（固定值，不得擅自增减）；
+// sort 以 10 为步长，便于后续在任意位置手工插入新分类而无需重排。
+var defaultServiceCategories = []model.ServiceCategory{
+	{Name: "剪发", Sort: 10, Status: model.StatusEnabled},
+	{Name: "烫发", Sort: 20, Status: model.StatusEnabled},
+	{Name: "染发", Sort: 30, Status: model.StatusEnabled},
+	{Name: "护理", Sort: 40, Status: model.StatusEnabled},
+	{Name: "造型", Sort: 50, Status: model.StatusEnabled},
+}
 
 // ServiceCategoryRepository 提供 service_categories 表的读写访问（03-DATABASE.md:87-96）。
 //
@@ -110,4 +123,24 @@ func (r *ServiceCategoryRepository) CountServicesInCategory(ctx context.Context,
 		Where("category_id = ?", categoryID).
 		Count(&count).Error
 	return count, err
+}
+
+// EnsureDefaultCategories 幂等播种默认服务分类：仅在 service_categories 为空时插入。
+//
+// 表中已有任意分类（含管理员自定义）时直接返回，不插入、不覆盖、不改名；
+// 因此重复启动（或恢复后再次启动）不会产生重复行（03-DATABASE.md:87-96）。
+func EnsureDefaultCategories(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&model.ServiceCategory{}).Count(&count).Error; err != nil {
+		return fmt.Errorf("统计 service_categories 行数失败: %w", err)
+	}
+	if count > 0 {
+		return nil // 已有分类（含自定义），保持原样
+	}
+	items := make([]model.ServiceCategory, len(defaultServiceCategories))
+	copy(items, defaultServiceCategories)
+	if err := db.Create(&items).Error; err != nil {
+		return fmt.Errorf("播种 service_categories 默认值失败: %w", err)
+	}
+	return nil
 }

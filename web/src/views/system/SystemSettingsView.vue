@@ -5,18 +5,25 @@
       shadow="never"
     >
       <template #header>
-        <div class="system-settings__header">
+        <div
+          class="system-settings__header"
+          :class="{ 'system-settings__header--mobile': isMobile }"
+        >
           <span class="system-settings__title">系统设置</span>
           <span class="system-settings__subtitle">仅管理员可修改；修改需二次确认并写入操作日志</span>
         </div>
       </template>
 
       <el-form
-        label-width="110px"
+        :label-width="isMobile ? 'auto' : '110px'"
+        :label-position="isMobile ? 'top' : 'right'"
         @submit.prevent
       >
         <el-form-item label="门店名称">
-          <div class="system-settings__row">
+          <div
+            class="system-settings__row"
+            :class="{ 'system-settings__row--mobile': isMobile }"
+          >
             <el-input
               v-model="shopNameDraft"
               class="system-settings__input"
@@ -38,7 +45,10 @@
         </el-form-item>
 
         <el-form-item label="积分比例">
-          <div class="system-settings__row">
+          <div
+            class="system-settings__row"
+            :class="{ 'system-settings__row--mobile': isMobile }"
+          >
             <el-input
               v-model="ratioDraft"
               class="system-settings__ratio"
@@ -68,12 +78,16 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { SETTING_KEY_POINTS_PER_YUAN, SETTING_KEY_SHOP_NAME } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { useSettingsStore } from '@/stores/settings'
 
 // 系统设置页（07-UI.md:96-110、plan todo 42）：仅 admin 路由可达（router meta.roles）。
 // 两项值一律来自 GET /settings（store），页面不写死默认值；
 // 保存成功后 store 即时更新本地状态 → 顶栏门店名称无需刷新即变化（07-UI.md:104）。
+// 手机端（<768px）：标签置顶（label-position=top）+ 控件纵向铺满整行，
+// 避免固定 label-width="110px" 的横排布局在 375px 视口横向溢出（plan todo 53/55、07-UI.md:87）。
 const settings = useSettingsStore()
+const isMobile = useIsMobile()
 
 const shopNameDraft = ref('')
 const ratioDraft = ref('')
@@ -189,6 +203,13 @@ async function save(key: string, value: string, successText: string): Promise<vo
   gap: 12px;
 }
 
+/* 手机端：标题与说明纵向排列，长说明不再与标题抢宽度（plan todo 55） */
+.system-settings__header--mobile {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .system-settings__title {
   font-size: 16px;
   font-weight: 600;
@@ -203,6 +224,26 @@ async function save(key: string, value: string, successText: string): Promise<vo
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* 手机端：输入框 + 单位说明 + 按钮纵向铺满整行，触控目标 ≥44px（plan todo 53/55、07-UI.md:87） */
+.system-settings__row--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.system-settings__row--mobile .el-button {
+  min-height: 44px;
+}
+
+.system-settings__row--mobile .system-settings__input {
+  max-width: none;
+  width: 100%;
+}
+
+.system-settings__row--mobile .system-settings__ratio {
+  width: 100%;
 }
 
 .system-settings__input {

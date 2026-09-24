@@ -8,10 +8,77 @@
       v-model:category-filter="categoryFilter"
       v-model:status-filter="statusFilter"
       :categories="categories"
+      :mobile="isMobile"
       @create="openCreate"
     />
 
+    <!-- 手机端（<768px）：卡片列表替代表格（plan todo 53/54、07-UI.md:119） -->
+    <div
+      v-if="isMobile"
+      v-loading="loading"
+      class="service-cards"
+    >
+      <article
+        v-for="service in filteredServices"
+        :key="service.id"
+        class="service-card"
+      >
+        <header class="service-card__head">
+          <span class="service-card__name">{{ service.name }}</span>
+          <span class="service-card__status">
+            <span class="service-card__status-label">状态</span>
+            <!-- 与表格同一份启停逻辑：切换期间禁用全部开关，失败时开关保持原状态 -->
+            <el-switch
+              :model-value="service.status === 1"
+              :loading="togglingId === service.id"
+              :disabled="togglingId !== null"
+              @change="(value) => handleStatusChange(service.id, value)"
+            />
+          </span>
+        </header>
+
+        <dl class="service-card__stats">
+          <div class="service-card__cell">
+            <dt>分类</dt>
+            <dd>{{ categoryName(service.category_id, service.category_name) }}</dd>
+          </div>
+          <div class="service-card__cell">
+            <dt>价格（元）</dt>
+            <dd class="service-card__value">
+              ¥{{ formatCents(service.price_cents) }}
+            </dd>
+          </div>
+          <div class="service-card__cell">
+            <dt>时长（分钟）</dt>
+            <dd class="service-card__value">
+              {{ service.duration_minutes }}
+            </dd>
+          </div>
+        </dl>
+
+        <footer class="service-card__actions">
+          <el-button @click="openEdit(service.id)">
+            编辑
+          </el-button>
+          <el-button
+            type="danger"
+            plain
+            @click="handleDelete(service.id)"
+          >
+            删除
+          </el-button>
+        </footer>
+      </article>
+
+      <el-empty
+        v-if="!loading && filteredServices.length === 0"
+        description="暂无服务"
+      />
+    </div>
+
+    <!-- PC：保持原有表格形态与列不变 -->
     <el-table
+      v-else
       v-loading="loading"
       :data="filteredServices"
       row-key="id"
@@ -103,6 +170,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { ApiError, CODE_VALIDATION_FAILED, deleteService, updateService } from '@/api'
 import type { Service, ServiceCategory, ServicePayload } from '@/api'
+import { useIsMobile } from '@/composables/useIsMobile'
 import { formatCents } from '@/utils/format'
 
 import ServiceFormDialog from './ServiceFormDialog.vue'
@@ -110,6 +178,7 @@ import ServiceToolbar from './ServiceToolbar.vue'
 
 // 服务表格：前端筛选（服务数量为单店量级）+ 启停开关 + 编辑/删除。
 // 数据由父级加载，任何变更后 emit('changed') 触发刷新，避免页面残留旧数据。
+// 手机端（<768px）：同一份数据/逻辑渲染卡片列表，PC 保持表格（plan todo 53/54）。
 const props = defineProps<{
   services: Service[]
   categories: ServiceCategory[]
@@ -121,6 +190,7 @@ const emit = defineEmits<{
   changed: []
 }>()
 
+const isMobile = useIsMobile()
 const keyword = ref('')
 const categoryFilter = ref<number | null>(null)
 const statusFilter = ref<number | null>(null)
@@ -250,3 +320,78 @@ async function handleDeleteConflict(service: Service, error: ApiError): Promise<
   }
 }
 </script>
+
+<style scoped>
+/* 手机端卡片列表（plan todo 53/54、07-UI.md:119） */
+.service-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.service-card {
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+}
+
+.service-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.service-card__name {
+  font-size: 16px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.service-card__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.service-card__status-label {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.service-card__stats {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.service-card__cell dt {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.service-card__cell dd {
+  margin: 2px 0 0;
+}
+
+.service-card__value {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.service-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 触控目标 ≥44px（plan todo 53/54） */
+.service-card__actions .el-button {
+  min-height: 44px;
+  margin-left: 0;
+}
+</style>

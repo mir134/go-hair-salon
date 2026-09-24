@@ -116,7 +116,7 @@ func TestErrorMatrix(t *testing.T) {
 			{"POST /recharges/:id/refund（充值冲正）", http.MethodPost, "/api/v1/recharges/1/refund", ""},
 			{"PUT /settings/:key（设置修改）", http.MethodPut, "/api/v1/settings/points_per_yuan", `{"value":"2"}`},
 			{"GET /operation-logs（操作日志）", http.MethodGet, "/api/v1/operation-logs", ""},
-			{"GET /employees（员工管理）", http.MethodGet, "/api/v1/employees", ""},
+			{"POST /employees（员工管理）", http.MethodPost, "/api/v1/employees", `{"name":"无权限员工"}`},
 			{"POST /users（用户管理）", http.MethodPost, "/api/v1/users", `{"username":"x","password":"Passw0rd!","role":"staff"}`},
 		}
 		// 说明：/backups 与 /backups/:id/restore 仅在装配 BackupService 时注册

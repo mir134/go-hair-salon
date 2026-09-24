@@ -48,8 +48,10 @@ function toList<T>(data: T[] | PageData<T>): T[] {
 }
 
 /**
- * GET /employees（admin）：默认含已停用员工；status=1|0 可选过滤
+ * GET /employees（both）：默认含已停用员工；status=1|0 可选过滤
  * （非法值后端宽松回退为不过滤，不得 500）。
+ * 查询开放给 staff：快速消费/挂单需选择服务员工（07-UI.md:50）；
+ * 员工建档/修改/停用仍仅 admin。
  */
 export async function listEmployees(status?: number): Promise<Employee[]> {
   const params = status === undefined ? undefined : { status }

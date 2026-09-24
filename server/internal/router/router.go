@@ -114,6 +114,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	dashboardCtl := controller.NewDashboardController(dashboardSvc)
 
 	api := engine.Group("/api/v1")
+	// 门店公开信息（免认证）：登录页展示配置店名（登录页无 token，无法调用 GET /settings）。
+	api.GET("/shop", settingsCtl.PublicShopInfo)
 	auth := api.Group("/auth")
 	auth.POST("/login", authCtl.Login)
 	// /auth/me 与 /auth/logout 为 both 分组：admin 与 staff 均可访问。
@@ -146,6 +148,9 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 	// 服务项目：查询 both，含分类信息（04-API.md:120-125）。
 	both.GET("/services", itemCtl.List)
 	both.GET("/services/:id", itemCtl.Get)
+	// 员工列表：查询 both —— 快速消费/挂单需选择服务员工（07-UI.md:50、06 §7「消费」）；
+	// 员工写操作（创建/修改/停用）仍仅 admin（04-API.md:194-204）。
+	both.GET("/employees", employeeCtl.List)
 	// 订单：创建/查询 both（04-API.md:127-135）。
 	both.POST("/orders", orderCtl.Create)
 	both.GET("/orders", orderCtl.List)
@@ -227,8 +232,8 @@ func New(db *gorm.DB, logger *slog.Logger, opts Options) *gin.Engine {
 			middleware.RequireRole(model.RoleAdmin))
 		restoreOnly.POST("/backups/:id/restore", backupCtl.Restore)
 	}
-	// 员工 CRUD 仅 admin；DELETE = 停用（status=0，行保留，D7 决议）（04-API.md:194-204、06 §7）。
-	adminOnly.GET("/employees", employeeCtl.List)
+	// 员工创建/修改/停用仅 admin；DELETE = 停用（status=0，行保留，D7 决议）（04-API.md:194-204、06 §7）。
+	// GET /employees（列表）已在 both 分组：快速消费/挂单需选择服务员工。
 	adminOnly.POST("/employees", employeeCtl.Create)
 	adminOnly.GET("/employees/:id", employeeCtl.Get)
 	adminOnly.PUT("/employees/:id", employeeCtl.Update)
