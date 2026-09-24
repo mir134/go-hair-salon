@@ -93,13 +93,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useIsMobile } from '@/composables/useIsMobile'
 import { NAV_ITEMS } from '@/router'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
+import { setPageTitle } from '@/utils/title'
 
 import MobileTabBar from './MobileTabBar.vue'
 
@@ -118,6 +119,15 @@ const isMobile = useIsMobile()
 onMounted(() => {
   void settings.ensureLoaded()
 })
+
+// 网页标题跟随店名：首次加载完成、管理员保存店名后都会触发（immediate 保证先设置兜底）
+watch(
+  () => settings.shopName,
+  (name) => {
+    setPageTitle(name)
+  },
+  { immediate: true },
+)
 
 const roleLabel = computed(() => (auth.role === null ? '' : ROLE_LABELS[auth.role]))
 

@@ -62,6 +62,7 @@ import { ElMessage } from 'element-plus'
 
 import { getShopInfo } from '@/api'
 import { DEFAULT_SHOP_NAME } from '@/constants'
+import { setPageTitle } from '@/utils/title'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -76,6 +77,8 @@ const loading = ref(false)
 const errorMessage = ref('')
 
 onMounted(() => {
+  // 未认证时默认先用兜底店名设置标题（GET /shop 成功后再替换为真实店名）
+  setPageTitle(shopName.value)
   void loadShopName()
 })
 
@@ -85,6 +88,7 @@ async function loadShopName(): Promise<void> {
     const info = await getShopInfo()
     if (info.shop_name.trim() !== '') {
       shopName.value = info.shop_name
+      setPageTitle(shopName.value)
     }
   } catch {
     // 拦截器已提示；保留兜底常量
