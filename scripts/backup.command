@@ -3,12 +3,12 @@
 # 理发店客户管理系统 - macOS 手动备份脚本（调用后端 API）
 # 备份 API 仅管理员可用，需要登录令牌：
 #   export HAIR_SALON_TOKEN=<管理员登录响应中的 data.token>
-#   ./backup.sh
+#   ./backup.command
 # 可用 HAIR_SALON_PORT 覆盖端口（默认 8080）。
 # 未设置令牌时不执行任何操作，只打印手动备份的替代路径。
 # 说明：系统每天 BACKUP_TIME（默认 23:00）自动备份一次，保留最近 7 份，
 #      备份文件位于 data/backups/。
-# 首次使用：chmod +x backup.sh
+# 首次使用：chmod +x backup.command
 # ============================================================
 set -u
 

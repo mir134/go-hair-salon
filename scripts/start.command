@@ -5,13 +5,13 @@
 #          web/dist 也必须位于本目录下（服务启动时自动托管静态页面）
 #
 # 首次使用（08-DEPLOYMENT.md:49 首次运行需要处理 macOS 执行权限）：
-#   chmod +x start.sh stop.sh backup.sh
+#   chmod +x start.command stop.command backup.command
 #   chmod +x hair-salon-server-darwin-amd64 hair-salon-server-darwin-arm64
 #   若从网络下载/拷贝后被 Gatekeeper 拦截（未签名二进制）：
 #     xattr -d com.apple.quarantine hair-salon-server-darwin-*
 #   或在 Finder 中右键 -> 打开，并在“系统设置 -> 隐私与安全性”中允许。
 #
-# 停止：./stop.sh（发送 SIGTERM，服务优雅关闭并关闭数据库连接）
+# 停止：./stop.command（发送 SIGTERM，服务优雅关闭并关闭数据库连接）
 # ============================================================
 set -eu
 
@@ -30,15 +30,45 @@ if [ ! -f "$BIN" ]; then
 fi
 if [ ! -x "$BIN" ]; then
   echo "[错误] $BIN 没有执行权限，请先运行：" >&2
-  echo "       chmod +x $BIN start.sh stop.sh backup.sh" >&2
+  echo "       chmod +x $BIN start.command stop.command backup.command" >&2
   exit 1
+fi
+
+# ===== macOS Gatekeeper 处理（08-DEPLOYMENT.md 首次运行提示）=====
+# 从浏览器/AirDrop/微信等下载后，macOS 会给文件打上 com.apple.quarantine 扩展属性，
+# 启动未签名二进制时会弹“无法验证开发者”。这里启动前自动清理；无该属性时静默忽略。
+# 同时对 Apple Silicon（M1/M2/M3/M4）做 ad-hoc 签名，否则 exec 会被内核直接拒绝（SIGKILL）。
+if [ "$(uname -s)" = "Darwin" ]; then
+  for b in hair-salon-server-darwin-amd64 hair-salon-server-darwin-arm64; do
+    if [ -f "$b" ]; then
+      if command -v xattr >/dev/null 2>&1; then
+        if xattr -p com.apple.quarantine "$b" >/dev/null 2>&1; then
+          xattr -d com.apple.quarantine "$b" 2>/dev/null && \
+            echo "[信息] 已移除 $b 的 Gatekeeper 隔离属性"
+        fi
+      fi
+      if [ ! -x "$b" ]; then
+        chmod +x "$b" 2>/dev/null || true
+      fi
+    fi
+  done
+  # Apple Silicon 需要 ad-hoc 签名（codesign 在 macOS 上默认存在）
+  if [ "$(uname -m)" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then
+    if command -v codesign >/dev/null 2>&1; then
+      # 仅当未签名或签名无效时重新签；--force 覆盖；- 表示 ad-hoc
+      if ! codesign -v "$BIN" >/dev/null 2>&1; then
+        codesign --force --deep --sign - "$BIN" 2>/dev/null && \
+          echo "[信息] 已为 $BIN 完成 ad-hoc 签名（Apple Silicon）"
+      fi
+    fi
+  fi
 fi
 
 if [ ! -f "config.yaml" ]; then
   if [ -f "config.example.yaml" ]; then
     cp config.example.yaml config.yaml
     echo "[提示] 已从 config.example.yaml 生成 config.yaml。"
-    echo "[错误] 请先编辑 config.yaml 填写 JWT_SECRET，然后重新运行 ./start.sh。" >&2
+    echo "[错误] 请先编辑 config.yaml 填写 JWT_SECRET，然后重新运行 ./start.command。" >&2
     exit 1
   fi
   echo "[错误] 未找到 config.yaml，也没有 config.example.yaml 模板。" >&2
@@ -52,7 +82,7 @@ fi
 
 PID_FILE="hair-salon-server.pid"
 if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  echo "[错误] 服务已在运行，PID $(cat "$PID_FILE")；如需重启请先执行 ./stop.sh。" >&2
+  echo "[错误] 服务已在运行，PID $(cat "$PID_FILE")；如需重启请先执行 ./stop.command。" >&2
   exit 1
 fi
 
@@ -65,4 +95,4 @@ echo "[信息] 控制台输出重定向到 logs/server-console.log"
 
 nohup "./$BIN" >> logs/server-console.log 2>&1 &
 echo $! > "$PID_FILE"
-echo "[信息] 服务已启动，PID $(cat "$PID_FILE")；停止请执行 ./stop.sh"
+echo "[信息] 服务已启动，PID $(cat "$PID_FILE")；停止请执行 ./stop.command"
